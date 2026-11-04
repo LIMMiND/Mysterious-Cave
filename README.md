@@ -1,4 +1,4 @@
-🕯️ Mysterious Cave — Таинственная пещера
+🕯️ Mysterious Cave
 
  A pixel-art roguelike dungeon crawler written in Python with pygame. Procedurally generated floors, turn-based combat, quests, a shop, a boss every 5 floors and a rare axe weapon. All graphics are drawn in code, no image assets. Built as a first game project with the help of AI (Claude).
 
