@@ -40,6 +40,7 @@ BASE_LIGHT = 6                # радиус света факела (в кле�
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MUSIC_DIR = os.path.join(BASE_DIR, "music")
 SAVE_FILE = os.path.join(BASE_DIR, "cave_records.json")
+SAVE_GAME = os.path.join(BASE_DIR, "cave_save.json")   # сохранение текущего забега
 AXE_DROP = 0.10               # шанс выпадения секиры с огра
 
 TEXT = (225, 220, 235)
@@ -57,22 +58,31 @@ PANEL_BORDER = (110, 85, 140)
 
 # ============================================================ данные
 ITEMS = {
-    "heal":   dict(name="Зелье лечения",  kind="potion", col=(205, 40, 65),   light=(255, 150, 165), price=25, desc="Восстанавливает 40 HP"),
-    "elixir": dict(name="Эликсир жизни",  kind="potion", col=(240, 120, 200), light=(255, 210, 240), price=70, desc="Полностью восстанавливает здоровье"),
-    "rage":   dict(name="Зелье ярости",   kind="potion", col=(230, 90, 30),   light=(255, 190, 120), price=40, desc="+50% урона на 10 ходов"),
-    "iron":   dict(name="Зелье стали",    kind="potion", col=(140, 150, 175), light=(220, 225, 240), price=40, desc="Получаемый урон -50% на 10 ходов"),
-    "haste":  dict(name="Зелье скорости", kind="potion", col=(60, 220, 220),  light=(200, 255, 255), price=45, desc="Враги ходят вдвое реже, 8 ходов"),
-    "vamp":   dict(name="Зелье вампира",  kind="potion", col=(140, 40, 150),  light=(220, 150, 230), price=50, desc="Лечит от твоих ударов, 12 ходов"),
-    "fire":   dict(name="Свиток огня",    kind="scroll", col=(255, 110, 30),  light=None,            price=55, desc="Взрыв вокруг: большой урон врагам рядом"),
-    "map":    dict(name="Свиток карты",   kind="scroll", col=(80, 200, 120),  light=None,            price=35, desc="Открывает карту всего этажа"),
+    "heal":   dict(name="Зелье лечения",    kind="potion", col=(205, 40, 65),   light=(255, 150, 165), price=25, glyph="plus",
+                   desc="Восстанавливает 40 HP"),
+    "elixir": dict(name="Эликсир жизни",    kind="potion", col=(240, 120, 200), light=(255, 210, 240), price=70, glyph="heart",
+                   desc="Полностью восстанавливает здоровье"),
+    "rage":   dict(name="Зелье силы",       kind="potion", col=(230, 90, 30),   light=(255, 190, 120), price=40, glyph="fist",
+                   desc="+50% урона на 10 ходов"),
+    "iron":   dict(name="Зелье стали",      kind="potion", col=(140, 150, 175), light=(220, 225, 240), price=40, glyph="shield",
+                   gcol=(40, 46, 66), desc="Получаемый урон -50% на 10 ходов"),
+    "invis":  dict(name="Зелье невидимости", kind="potion", col=(150, 200, 255), light=(230, 245, 255), price=45, glyph="ghost",
+                   gcol=(235, 248, 255), alpha=125, desc="Враги теряют тебя из виду (заметят только вплотную), 8 ходов"),
+    "vamp":   dict(name="Зелье вампира",    kind="potion", col=(140, 40, 150),  light=(220, 150, 230), price=50, glyph="drop",
+                   desc="Лечит от твоих ударов, 12 ходов"),
+    "fire":   dict(name="Свиток огня",      kind="scroll", col=(200, 50, 10),   light=None,            price=55, glyph="flame",
+                   desc="Взрыв вокруг: большой урон врагам рядом"),
+    "map":    dict(name="Свиток карты",     kind="scroll", col=(40, 120, 60),   light=None,            price=35, glyph="cross",
+                   desc="Открывает карту всего этажа"),
 }
-ORDER = ["heal", "elixir", "rage", "iron", "haste", "vamp", "fire", "map"]
-DROP_W = {"heal": 40, "elixir": 5, "rage": 10, "iron": 10, "haste": 8, "vamp": 8, "fire": 10, "map": 9}
-BUFF_TURNS = {"rage": 10, "iron": 10, "haste": 8, "vamp": 12}
-STATUS_NAME = {"rage": "Ярость", "iron": "Сталь", "haste": "Скорость", "vamp": "Вампир",
-               "poison": "Яд", "burn": "Горение"}
-STATUS_COL = {"rage": ORANGE, "iron": (170, 180, 205), "haste": CYAN, "vamp": PURPLE,
-              "poison": GREEN, "burn": ORANGE}
+ITEM_COL = {"fire": (255, 110, 30), "map": (80, 200, 120)}      # цвет рамки слота для свитков
+ORDER = ["heal", "elixir", "rage", "iron", "invis", "vamp", "fire", "map"]
+DROP_W = {"heal": 40, "elixir": 5, "rage": 10, "iron": 10, "invis": 8, "vamp": 8, "fire": 10, "map": 9}
+BUFF_TURNS = {"rage": 10, "iron": 10, "invis": 8, "vamp": 12}
+STATUS_NAME = {"rage": "Сила", "iron": "Сталь", "invis": "Невидимость", "vamp": "Вампир",
+               "poison": "Яд", "burn": "Горение", "frost": "Холод"}
+STATUS_COL = {"rage": ORANGE, "iron": (170, 180, 205), "invis": (190, 225, 255), "vamp": PURPLE,
+              "poison": GREEN, "burn": ORANGE, "frost": (150, 210, 255)}
 
 # (ключ, название, описание, базовая цена, рост цены, максимум уровней)
 UPGRADES = [
@@ -139,7 +149,7 @@ STORIES = {
 }
 
 
-def mob_pool(depth):
+def mob_pool(depth, biome="cave"):
     pool = [("goblin", 10), ("bat", 6)]
     if depth >= 2:
         pool.append(("slime", 6))
@@ -149,7 +159,180 @@ def mob_pool(depth):
         pool.append(("mage", 4))
     if depth >= 5:
         pool.append(("ogre", 3))
-    return pool
+    mult = BIOME_WEIGHT.get(biome, {})
+    return [(k, w * mult.get(k, 1.0)) for k, w in pool]
+
+
+# ============================================================ локации (биомы)
+# Каждые 10 этажей — новая локация. Порядок выбора случайный, но без повторов подряд:
+# новая локация не совпадает ни с текущей, ни с предыдущей.
+BIOMES = {
+    "cave": dict(
+        name="Заброшенная пещера", wall_style="brick",
+        floor=(38, 34, 44), dots=[(46, 41, 54), (32, 28, 38), (52, 46, 60)],
+        wall=((78, 64, 92), (98, 82, 112), (36, 28, 46)),
+        alts=[(40, 70, 120), (110, 60, 60), (40, 100, 90)],
+        torch=((255, 150, 40), (255, 230, 120)), tint=(0, 0, 0, 0), haz=None,
+        skin=None, color=(200, 170, 255)),
+    "quarry": dict(
+        name="Камнеломня", wall_style="block",
+        floor=(62, 58, 52), dots=[(74, 70, 62), (50, 47, 42), (86, 82, 74)],
+        wall=((118, 108, 92), (146, 136, 116), (62, 54, 44)),
+        alts=[(130, 100, 60), (90, 100, 120), (120, 80, 70)],
+        torch=((255, 160, 50), (255, 235, 130)), tint=(40, 30, 10, 14), haz=None,
+        skin=((60, 56, 52), (130, 124, 114), (205, 200, 188), (255, 170, 40)), color=(210, 190, 150)),
+    "flooded": dict(
+        name="Затопленная пещера", wall_style="wet",
+        floor=(30, 48, 62), dots=[(38, 60, 76), (24, 40, 52), (48, 76, 92)],
+        wall=((44, 78, 98), (74, 118, 140), (20, 38, 52)),
+        alts=[(30, 90, 110), (40, 60, 120), (30, 100, 80)],
+        torch=((60, 200, 220), (200, 255, 255)), tint=(0, 40, 90, 26), haz="water",
+        skin=((20, 50, 70), (50, 130, 150), (175, 228, 238), (230, 255, 255)), color=(110, 200, 230)),
+    "lava": dict(
+        name="Лавовая пещера", wall_style="basalt",
+        floor=(44, 26, 24), dots=[(58, 32, 26), (34, 20, 20), (80, 40, 24)],
+        wall=((62, 44, 44), (88, 62, 58), (26, 16, 16)),
+        alts=[(120, 40, 20), (90, 20, 40), (110, 70, 20)],
+        torch=((255, 120, 30), (255, 220, 90)), tint=(120, 20, 0, 26), haz="lava",
+        skin=((50, 16, 10), (190, 60, 20), (255, 190, 60), (255, 240, 120)), color=(255, 120, 40)),
+    "crystal": dict(
+        name="Пещера самоцветов", wall_style="crystal",
+        floor=(40, 32, 62), dots=[(52, 42, 80), (30, 24, 50), (70, 56, 100)],
+        wall=((84, 64, 128), (136, 106, 196), (40, 28, 70)),
+        alts=[(30, 90, 140), (140, 50, 110), (40, 120, 110)],
+        torch=((200, 120, 255), (255, 220, 255)), tint=(80, 20, 120, 20), haz=None,
+        skin=((50, 24, 90), (150, 80, 210), (242, 192, 255), (255, 255, 255)), color=(210, 150, 255)),
+    "crypt": dict(
+        name="Склеп", wall_style="crypt",
+        floor=(52, 50, 48), dots=[(62, 60, 56), (42, 40, 38), (72, 70, 66)],
+        wall=((96, 92, 84), (126, 122, 108), (44, 42, 38)),
+        alts=[(70, 90, 70), (100, 90, 60), (70, 70, 100)],
+        torch=((110, 230, 130), (220, 255, 220)), tint=(0, 40, 10, 18), haz=None,
+        skin=((40, 44, 40), (110, 126, 100), (208, 214, 192), (120, 255, 140)), color=(190, 210, 170)),
+    "castle": dict(
+        name="Подземный замок", wall_style="block",
+        floor=(46, 44, 60), dots=[(56, 54, 74), (36, 34, 48), (66, 62, 86)],
+        wall=((82, 84, 106), (112, 114, 140), (38, 38, 54)),
+        alts=[(100, 40, 60), (40, 60, 110), (60, 50, 100)],
+        torch=((255, 150, 60), (255, 235, 150)), tint=(30, 10, 50, 20), haz=None,
+        skin=((30, 24, 52), (84, 72, 130), (192, 182, 232), (255, 60, 70)), color=(170, 150, 230)),
+    "acid": dict(
+        name="Кислотные пещеры", wall_style="acid",
+        floor=(38, 52, 34), dots=[(48, 66, 40), (28, 40, 26), (66, 92, 46)],
+        wall=((70, 96, 60), (102, 136, 82), (30, 44, 26)),
+        alts=[(110, 130, 30), (30, 120, 80), (80, 110, 60)],
+        torch=((140, 255, 60), (230, 255, 150)), tint=(40, 120, 10, 24), haz="acid",
+        skin=((20, 60, 10), (90, 190, 40), (222, 255, 122), (255, 255, 60)), color=(150, 240, 70)),
+    "ice": dict(
+        name="Ледяная пещера", wall_style="ice",
+        floor=(86, 112, 134), dots=[(104, 134, 158), (70, 94, 116), (130, 160, 182)],
+        wall=((120, 156, 184), (180, 214, 236), (62, 90, 116)),
+        alts=[(120, 130, 210), (100, 190, 200), (150, 150, 230)],
+        torch=((90, 170, 255), (220, 245, 255)), tint=(30, 80, 160, 24), haz="ice",
+        skin=((50, 90, 130), (140, 200, 235), (242, 252, 255), (60, 120, 255)), color=(180, 225, 255)),
+    "diamond": dict(
+        name="Алмазная пещера", wall_style="crystal",
+        floor=(90, 100, 120), dots=[(110, 122, 146), (74, 84, 104), (160, 180, 205)],
+        wall=((132, 152, 182), (204, 228, 252), (70, 84, 110)),
+        alts=[(150, 200, 230), (200, 170, 230), (160, 230, 215)],
+        torch=((200, 240, 255), (255, 255, 255)), tint=(60, 110, 160, 14), haz=None,
+        skin=((90, 120, 160), (170, 225, 250), (255, 255, 255), (120, 200, 255)), color=(190, 235, 255)),
+}
+BIOME_ORDER = list(BIOMES)
+HAZ_FRAC = {"lava": 0.05, "water": 0.11, "acid": 0.05, "ice": 0.11}
+# множители шанса появления видов монстров в локации
+BIOME_WEIGHT = {
+    "quarry": {"ogre": 1.6}, "flooded": {"slime": 2.0, "archer": 0.6}, "lava": {"mage": 2.0},
+    "crystal": {"mage": 1.5}, "crypt": {"archer": 2.0, "bat": 0.6}, "castle": {"archer": 1.5, "mage": 1.5},
+    "acid": {"slime": 2.2}, "ice": {"ogre": 1.5, "bat": 0.7}, "diamond": {"mage": 1.4, "ogre": 1.3},
+}
+NV = 5                      # сколько «оттенков» градиента у плиток
+PROJ_COL = {"fire": (255, 150, 40), "arrow": (235, 225, 190), "rock": (150, 135, 110),
+            "shard": (214, 160, 255), "spit": (150, 235, 60), "curse": (150, 255, 160), "ice": (180, 232, 255)}
+
+# имя и множественное число обычных монстров в каждой локации (только внешний вид + названия)
+BIOME_NAMES = {
+    "quarry": dict(goblin=("Каменотёс-гоблин", "каменотёсов-гоблинов"), bat=("Каменный нетопырь", "каменных нетопырей"),
+                   slime=("Булыжный слизень", "булыжных слизней"), archer=("Шахтёр-арбалетчик", "шахтёров-арбалетчиков"),
+                   mage=("Рудный шаман", "рудных шаманов"), ogre=("Каменный тролль", "каменных троллей")),
+    "flooded": dict(goblin=("Утопленник", "утопленников"), bat=("Летучая рыба", "летучих рыб"),
+                    slime=("Медуза", "медуз"), archer=("Скелет-гарпунщик", "скелетов-гарпунщиков"),
+                    mage=("Морская ведьма", "морских ведьм"), ogre=("Глубинный тритон", "глубинных тритонов")),
+    "lava": dict(goblin=("Огненный бес", "огненных бесов"), bat=("Пепельный нетопырь", "пепельных нетопырей"),
+                 slime=("Магмовый слизень", "магмовых слизней"), archer=("Обугленный лучник", "обугленных лучников"),
+                 mage=("Пиромант", "пиромантов"), ogre=("Лавовый голем", "лавовых големов")),
+    "crystal": dict(goblin=("Кристальный гоблин", "кристальных гоблинов"), bat=("Светящийся мотылёк", "светящихся мотыльков"),
+                    slime=("Минеральный гель", "минеральных гелей"), archer=("Кристальный стрелок", "кристальных стрелков"),
+                    mage=("Маг самоцветов", "магов самоцветов"), ogre=("Самоцветный голем", "самоцветных големов")),
+    "crypt": dict(goblin=("Зомби", "зомби"), bat=("Призрачный нетопырь", "призрачных нетопырей"),
+                  slime=("Могильная жижа", "могильных жиж"), archer=("Костяной лучник", "костяных лучников"),
+                  mage=("Некромант", "некромантов"), ogre=("Упырь", "упырей")),
+    "castle": dict(goblin=("Рыцарь-страж", "рыцарей-стражей"), bat=("Вампир-летучка", "вампиров-летучек"),
+                   slime=("Кровавый студень", "кровавых студней"), archer=("Королевский арбалетчик", "королевских арбалетчиков"),
+                   mage=("Вампир-чародей", "вампиров-чародеев"), ogre=("Чёрный латник", "чёрных латников")),
+    "acid": dict(goblin=("Токсичный гоблин", "токсичных гоблинов"), bat=("Кислотный нетопырь", "кислотных нетопырей"),
+                 slime=("Кислотный слизень", "кислотных слизней"), archer=("Мутант-стрелок", "мутантов-стрелков"),
+                 mage=("Алхимик-мутант", "алхимиков-мутантов"), ogre=("Ядовитый великан", "ядовитых великанов")),
+    "ice": dict(goblin=("Ледяной гоблин", "ледяных гоблинов"), bat=("Морозный нетопырь", "морозных нетопырей"),
+                slime=("Ледяной слизень", "ледяных слизней"), archer=("Замёрзший лучник", "замёрзших лучников"),
+                mage=("Ледяной маг", "ледяных магов"), ogre=("Снежный йети", "снежных йети")),
+    "diamond": dict(goblin=("Алмазный страж", "алмазных стражей"), bat=("Алмазный мотылёк", "алмазных мотыльков"),
+                    slime=("Бриллиантовый гель", "бриллиантовых гелей"), archer=("Алмазный лучник", "алмазных лучников"),
+                    mage=("Алмазный маг", "алмазных магов"), ogre=("Алмазный колосс", "алмазных колоссов")),
+}
+
+# ============================================================ боссы 10-го этажа каждой локации
+# kit — способности (название, перезарядка в ходах). Остальные поля — особые свойства.
+BOSSES = {
+    "cave": dict(name="Громгар", title="Пещерный Тролль", hp=300, dmg=(14, 22), xp=220, gold=(180, 260), sight=12,
+                 col=(150, 130, 105), kit=[("slam", 4), ("rock", 3)],
+                 desc="Огромный тролль. Бьёт кулаком по площади и кидает камни."),
+    "quarry": dict(name="Монолит", title="Каменный Голем", hp=340, dmg=(15, 24), xp=240, gold=(190, 270), sight=12,
+                   col=(150, 155, 170), armor=6, kit=[("rockfall", 5), ("slam", 4)],
+                   desc="Очень прочный голем (броня). Обрушивает камни на героя."),
+    "flooded": dict(name="Глубоган", title="Повелитель Бездны", hp=320, dmg=(14, 22), xp=250, gold=(190, 280), sight=12,
+                    col=(70, 160, 180), kit=[("flood", 6), ("slam", 4), ("summon", 9)],
+                    desc="Кракен. Затапливает пол, замедляя всех, и призывает утопленников."),
+    "lava": dict(name="Магмарис", title="Лавовый Титан", hp=360, dmg=(16, 26), xp=280, gold=(210, 300), sight=12,
+                 col=(255, 120, 40), trail="lava", kit=[("breath", 5), ("slam", 5)],
+                 desc="Оставляет за собой лаву, дышит огнём и бьёт по площади."),
+    "crystal": dict(name="Аметрион", title="Хранитель Самоцветов", hp=320, dmg=(14, 22), xp=270, gold=(200, 290), sight=12,
+                    col=(210, 150, 255), reflect=0.25, regen=0.01, kit=[("shard", 2), ("blink", 6)],
+                    desc="Отражает часть урона, лечится и телепортируется. Стреляет осколками."),
+    "crypt": dict(name="Некрос", title="Король-лич", hp=330, dmg=(13, 21), xp=290, gold=(220, 310), sight=12,
+                  col=(150, 255, 160), drain=True, kit=[("summon", 7), ("curse", 3)],
+                  desc="Призывает нежить, проклинает ядом и лечится, нанося удары."),
+    "castle": dict(name="Сэр Мортемар", title="Призрачный Доспех", hp=380, dmg=(16, 26), xp=310, gold=(230, 330), sight=12,
+                   col=(170, 190, 255), armor=10, kit=[("charge", 5)],
+                   desc="Призрак в доспехах. Очень сильная броня, таранит в прыжке."),
+    "acid": dict(name="Токсикус", title="Король Кислотной Слизи", hp=340, dmg=(13, 21), xp=300, gold=(220, 320), sight=12,
+                 col=(150, 240, 70), trail="acid", split=True, kit=[("spit", 3)],
+                 desc="Оставляет кислоту, плюётся ядом и делится на слизней."),
+    "ice": dict(name="Йотун", title="Ледяной Великан", hp=400, dmg=(17, 27), xp=330, gold=(240, 340), sight=12,
+                col=(190, 230, 255), trail="ice", kit=[("freeze", 4), ("slam", 4)],
+                desc="Замораживает героя (холод замедляет) и оставляет лёд."),
+    "diamond": dict(name="Адамас", title="Алмазный Колосс", hp=420, dmg=(18, 28), xp=360, gold=(260, 380), sight=12,
+                    col=(190, 235, 255), armor=8, reflect=0.25, kit=[("shard", 3), ("blink", 7)],
+                    desc="Броня, отражение урона и град алмазных осколков."),
+}
+for _k, _b in BOSSES.items():
+    MOBS["boss_" + _k] = dict(_b, plural=_b["name"], boss=True)
+MOBS["king"]["title"] = "Предводитель гоблинов"
+MOBS["king"]["kit"] = []
+
+
+def is_boss(m):
+    return bool(MOBS[m.kind].get("boss")) or m.kind == "king"
+
+
+def mob_plural(kind, biome):
+    n = BIOME_NAMES.get(biome, {}).get(kind)
+    return n[1] if n else MOBS[kind]["plural"]
+
+
+SWORD_STAGES = ["Железный меч", "Стальной клинок", "Закалённая сталь", "Синяя сталь", "Мифриловый клинок",
+                "Мифрил с рунами", "Золотой клинок", "Рунический клинок", "Клинок бури", "Пылающий меч",
+                "Легендарный меч Зари"]
 
 
 # ============================================================ мелкие помощники
@@ -254,6 +437,33 @@ def save_records(rec):
     try:
         with open(SAVE_FILE, "w", encoding="utf-8") as f:
             json.dump(rec, f)
+    except Exception:
+        pass
+
+
+def save_game_to_disk(g):
+    try:
+        with open(SAVE_GAME, "w", encoding="utf-8") as f:
+            json.dump(g.dump(), f)
+    except Exception:
+        pass
+
+
+def load_save_file():
+    try:
+        with open(SAVE_GAME, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        if d.get("version") == 2 and "floor" in d:
+            return d
+    except Exception:
+        pass
+    return None
+
+
+def delete_save():
+    try:
+        if os.path.isfile(SAVE_GAME):
+            os.remove(SAVE_GAME)
     except Exception:
         pass
 
@@ -435,16 +645,16 @@ def wall_tile():
     return scaled(s)
 
 
-def torch_sprite(f):
+def torch_sprite(f, c1=(255, 150, 40), c2=(255, 230, 120)):
     s = new_sprite()
     rect(s, (60, 45, 35), 6, 7, 4, 2)
     rect(s, (100, 78, 55), 7, 8, 2, 6)
     if f == 0:
-        pygame.draw.polygon(s, (255, 150, 40), [(8, 1), (5, 7), (11, 7)])
-        pygame.draw.polygon(s, (255, 230, 120), [(8, 3), (7, 7), (9, 7)])
+        pygame.draw.polygon(s, c1, [(8, 1), (5, 7), (11, 7)])
+        pygame.draw.polygon(s, c2, [(8, 3), (7, 7), (9, 7)])
     else:
-        pygame.draw.polygon(s, (255, 130, 35), [(9, 2), (5, 7), (11, 7)])
-        pygame.draw.polygon(s, (255, 220, 110), [(8, 4), (7, 7), (9, 7)])
+        pygame.draw.polygon(s, c1, [(9, 2), (5, 7), (11, 7)])
+        pygame.draw.polygon(s, c2, [(8, 4), (7, 7), (9, 7)])
     return scaled(s)
 
 
@@ -458,31 +668,7 @@ def armor_palette(lvl):
     return (95, 100, 115), (140, 145, 160), (195, 200, 215)
 
 
-def draw_sword(s, hand, ang):
-    hx, hy = hand
-    ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
-    pygame.draw.line(s, (120, 70, 40), ip(hx, hy), ip(hx - ca * 2, hy - sa * 2))            # рукоять
-    pygame.draw.line(s, (205, 210, 225), ip(hx + ca, hy + sa), ip(hx + ca * 8, hy + sa * 8))  # клинок
-    pygame.draw.line(s, (255, 230, 120), ip(hx - sa * 1.6, hy + ca * 1.6),
-                     ip(hx + sa * 1.6, hy - ca * 1.6))                                      # гарда
-
-
-def draw_axe(s, hand, ang):
-    hx, hy = hand
-    ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
-    d, p = (ca, sa), (-sa, ca)
-    pygame.draw.line(s, (120, 80, 45), ip(hx - ca * 2, hy - sa * 2), ip(hx + ca * 8, hy + sa * 8))  # древко
-    cx, cy = hx + ca * 6, hy + sa * 6
-    pts = [ip(cx - d[0] * 2, cy - d[1] * 2),
-           ip(cx - d[0] * 2 + p[0] * 3.2, cy - d[1] * 2 + p[1] * 3.2),
-           ip(cx + d[0] * 2 + p[0] * 3.8, cy + d[1] * 2 + p[1] * 3.8),
-           ip(cx + d[0] * 2.5, cy + d[1] * 2.5)]
-    pygame.draw.polygon(s, (170, 176, 195), pts)
-    pygame.draw.polygon(s, (70, 72, 90), pts, 1)
-    pygame.draw.line(s, (240, 245, 255), pts[1], pts[2])                                   # лезвие
-
-
-def build_player(anim, f, armor, weapon):
+def build_player(anim, f, armor, weapon, wl=0):
     """16x16 герой, смотрит ВПРАВО. anim: idle(2) / walk(4) / attack(3)."""
     s = new_sprite()
     dark, mid, light = armor_palette(armor)
@@ -555,25 +741,8 @@ def build_player(anim, f, armor, weapon):
     if armor >= 1:                                  # наколенники
         rect(s, mid, 5, 12, 2, 1)
         rect(s, mid, 9, 12, 2, 1)
-    (draw_axe if weapon == "axe" else draw_sword)(s, hand, ang)
+    (draw_axe if weapon == "axe" else draw_sword)(s, hand, ang, wl)
     return scaled(s)
-
-
-def weapon_icon(kind):
-    s = new_sprite()
-    if kind == "axe":
-        pygame.draw.line(s, (120, 80, 45), (3, 14), (11, 4))
-        pygame.draw.line(s, (120, 80, 45), (4, 14), (12, 4))
-        pts = [(8, 3), (14, 2), (14, 8), (11, 7)]
-        pygame.draw.polygon(s, (170, 176, 195), pts)
-        pygame.draw.polygon(s, (70, 72, 90), pts, 1)
-        pygame.draw.line(s, (240, 245, 255), (14, 2), (14, 8))
-    else:
-        pygame.draw.line(s, (205, 210, 225), (5, 11), (13, 3))
-        pygame.draw.line(s, (235, 240, 250), (6, 11), (14, 3))
-        pygame.draw.line(s, (255, 230, 120), (3, 9), (7, 13))
-        pygame.draw.line(s, (120, 70, 40), (2, 14), (4, 12))
-    return scaled(s, 2)
 
 
 def goblin_sprite():
@@ -769,28 +938,6 @@ def exit_sprite():
     return scaled(s)
 
 
-def potion_sprite(col, light):
-    s = new_sprite()
-    shadow(s, 4, 8)
-    rect(s, (150, 105, 60), 6, 3, 4, 2)
-    rect(s, (200, 205, 225), 7, 5, 2, 2)
-    rect(s, col, 5, 6, 6, 1)
-    rect(s, col, 4, 7, 8, 7)
-    rect(s, light, 5, 8, 1, 3)
-    return scaled(s, 2)
-
-
-def scroll_sprite(col):
-    s = new_sprite()
-    shadow(s, 3, 10)
-    rect(s, (225, 205, 160), 3, 4, 10, 9)
-    rect(s, (170, 140, 90), 2, 3, 12, 2)
-    rect(s, (170, 140, 90), 2, 12, 12, 2)
-    rect(s, (150, 125, 85), 5, 7, 6, 1)
-    rect(s, col, 7, 9, 3, 3)
-    return scaled(s, 2)
-
-
 def make_light(size):
     """Круглая маска света: в центре прозрачно, к краям темнота."""
     small = max(2, size // 8)
@@ -826,15 +973,771 @@ def make_vignette(k):
     return s
 
 
+# ============================================================ графика локаций
+def lerpc(a, b, t):
+    t = clamp01(t)
+    return (int(a[0] + (b[0] - a[0]) * t), int(a[1] + (b[1] - a[1]) * t), int(a[2] + (b[2] - a[2]) * t))
+
+
+def shade_c(c, k):
+    return lerpc(c, (255, 255, 255), k) if k > 0 else lerpc(c, (0, 0, 0), -k)
+
+
+def _floor_surf(biome, base, dots, seed, var=0):
+    rng = random.Random(seed)
+    s = pygame.Surface((PX, PX))
+    s.fill(base)
+    for _ in range(14):
+        s.set_at((rng.randrange(PX), rng.randrange(PX)), rng.choice(dots))
+    lt, dk = shade_c(base, 0.25), shade_c(base, -0.3)
+    if biome == "quarry":
+        for _ in range(5):
+            x, y = rng.randrange(1, 14), rng.randrange(1, 15)
+            pygame.draw.rect(s, lt, (x, y, 2, 1))
+    elif biome == "flooded":
+        wl = lerpc(base, (120, 190, 230), 0.4)
+        for y in (4, 11):
+            for x in range(PX):
+                if (x + y) % 4 < 2:
+                    s.set_at((x, y), wl)
+    elif biome == "lava":
+        x, y = rng.randrange(3, 12), 1
+        for _ in range(7):
+            s.set_at((x, y), (22, 10, 10))
+            if rng.random() < 0.35:
+                s.set_at((x, y), (225, 90, 30))
+            y += 2
+            x = max(1, min(14, x + rng.choice((-1, 0, 1))))
+    elif biome == "crystal":
+        for _ in range(2):
+            s.set_at((rng.randrange(1, 15), rng.randrange(1, 15)), shade_c(base, 0.55))
+    elif biome == "crypt":
+        if var == 1:
+            for _ in range(8):
+                s.set_at((rng.randrange(PX), rng.randrange(PX)), (176, 156, 102))
+        elif var == 2:
+            for i in range(5):
+                s.set_at((2 + i * 2, 13 - i * 2), lt)
+        else:
+            pygame.draw.line(s, dk, (0, 8), (PX, 8))
+    elif biome == "castle":
+        pygame.draw.line(s, dk, (0, 8), (PX, 8))
+        pygame.draw.line(s, dk, (4, 0), (4, 7))
+        pygame.draw.line(s, dk, (11, 8), (11, 15))
+    elif biome == "acid":
+        cx, cy = rng.randrange(3, 12), rng.randrange(3, 12)
+        for dx, dy in ((0, 0), (1, 0), (0, 1), (-1, 0), (1, 1)):
+            s.set_at((cx + dx, cy + dy), (112, 172, 52))
+    elif biome == "ice":
+        for i in range(4):
+            s.set_at((3 + i, 12 - i), lt)
+        s.set_at((10, 5), lt)
+        s.set_at((11, 4), lt)
+    elif biome == "diamond":
+        for _ in range(2):
+            s.set_at((rng.randrange(1, 15), rng.randrange(1, 15)), (255, 255, 255))
+    pygame.draw.rect(s, shade_c(base, -0.25), (0, 0, PX, PX), 1)
+    return s
+
+
+def _deco_draw(s, biome, which, rng):
+    if biome == "cave":
+        if which == 1:
+            for _ in range(10):
+                s.set_at((rng.randrange(1, 15), rng.randrange(1, 15)),
+                         rng.choice([(48, 78, 50), (40, 66, 44), (58, 92, 58)]))
+        else:
+            rect(s, (205, 200, 185), 4, 10, 7, 1)
+            s.set_at((3, 9), (205, 200, 185)); s.set_at((3, 11), (205, 200, 185))
+            s.set_at((11, 9), (205, 200, 185)); s.set_at((11, 11), (205, 200, 185))
+            rect(s, (215, 210, 195), 9, 4, 3, 3)
+            s.set_at((9, 5), (30, 25, 30)); s.set_at((11, 5), (30, 25, 30))
+    elif biome == "quarry":
+        if which == 1:
+            for _ in range(5):
+                x, y = rng.randrange(2, 14), rng.randrange(2, 14)
+                s.set_at((x, y), (240, 200, 60))
+                s.set_at((x + 1, y), (190, 150, 40))
+        else:
+            for _ in range(3):
+                x, y = rng.randrange(2, 11), rng.randrange(3, 12)
+                rect(s, (122, 116, 106), x, y, 3, 2)
+                rect(s, (86, 82, 74), x, y + 2, 3, 1)
+    elif biome == "flooded":
+        if which == 1:
+            for x in (4, 8, 11):
+                for y in range(13 - rng.randrange(3, 6), 13):
+                    s.set_at((x + (y % 2), y), (40, 150, 84))
+        else:
+            rect(s, (240, 214, 196), 5, 9, 4, 2)
+            rect(s, (212, 164, 152), 6, 11, 2, 1)
+            rect(s, (240, 214, 196), 10, 5, 2, 2)
+    elif biome == "lava":
+        if which == 1:
+            for _ in range(7):
+                s.set_at((rng.randrange(1, 15), rng.randrange(1, 15)),
+                         rng.choice([(255, 120, 30), (255, 200, 80), (120, 40, 20)]))
+        else:
+            rect(s, (74, 62, 60), 5, 6, 5, 4)
+            s.set_at((6, 7), (20, 14, 14)); s.set_at((8, 7), (20, 14, 14))
+            rect(s, (74, 62, 60), 4, 10, 7, 1)
+    elif biome == "crystal":
+        if which == 1:
+            for x, y in ((4, 10), (10, 7)):
+                pygame.draw.polygon(s, (214, 160, 255), [(x, y), (x + 1, y - 4), (x + 2, y)])
+                s.set_at((x + 1, y - 3), (255, 245, 255))
+        else:
+            pygame.draw.circle(s, (92, 62, 142), (8, 9), 5)
+            pygame.draw.circle(s, (232, 192, 255), (8, 9), 3)
+            pygame.draw.circle(s, (255, 235, 255), (8, 8), 1)
+    elif biome == "crypt":
+        if which == 1:
+            for i in range(7):
+                s.set_at((1 + i, 1), (220, 220, 210))
+                s.set_at((1, 1 + i), (220, 220, 210))
+                s.set_at((1 + i // 2 + 1, 1 + i // 2 + 1), (200, 200, 190))
+            pygame.draw.line(s, (200, 200, 190), (1, 1), (7, 7))
+        else:
+            rect(s, (205, 200, 185), 4, 10, 7, 1)
+            s.set_at((3, 9), (205, 200, 185)); s.set_at((11, 11), (205, 200, 185))
+            rect(s, (215, 210, 195), 8, 4, 3, 3)
+            s.set_at((8, 5), (30, 25, 30)); s.set_at((10, 5), (30, 25, 30))
+    elif biome == "castle":
+        if which == 1:
+            pygame.draw.lines(s, (20, 18, 30), False, [(3, 2), (6, 6), (5, 9), (9, 13)])
+        else:
+            rect(s, (150, 30, 44), 3, 6, 6, 4)
+            rect(s, (190, 50, 64), 4, 7, 4, 1)
+            s.set_at((11, 11), (240, 200, 70)); s.set_at((12, 11), (240, 200, 70))
+    elif biome == "acid":
+        if which == 1:
+            pygame.draw.ellipse(s, (96, 190, 40), (3, 5, 10, 7))
+            pygame.draw.ellipse(s, (170, 240, 90), (5, 6, 4, 3))
+        else:
+            rect(s, (200, 220, 160), 4, 10, 7, 1)
+            rect(s, (210, 230, 170), 9, 4, 3, 3)
+            s.set_at((9, 5), (30, 60, 20)); s.set_at((11, 5), (30, 60, 20))
+    elif biome == "ice":
+        if which == 1:
+            for _ in range(10):
+                s.set_at((rng.randrange(2, 14), rng.randrange(2, 14)), (232, 248, 255))
+        else:
+            for x in (5, 9):
+                pygame.draw.polygon(s, (206, 238, 252), [(x, 12), (x + 1, 5), (x + 2, 12)])
+    elif biome == "diamond":
+        if which == 1:
+            for x, y in ((4, 9), (9, 6), (11, 11)):
+                pygame.draw.polygon(s, (230, 250, 255), [(x, y), (x + 1, y - 2), (x + 2, y)])
+        else:
+            for x, y in ((5, 5), (10, 10)):
+                s.set_at((x, y), (255, 255, 255))
+                for d in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    s.set_at((x + d[0], y + d[1]), (190, 235, 255))
+
+
+def _wall_surf(biome, style, wall, seed, var=0):
+    base, hi, mortar = wall
+    rng = random.Random(seed)
+    s = pygame.Surface((PX, PX))
+    s.fill(base)
+    if style in ("brick", "wet", "acid", "crypt"):
+        mc = mortar
+        if style == "crypt" and var == 1:        # песчаный склеп: кирпич светлее, швы тёплые
+            s.fill(lerpc(base, (190, 160, 100), 0.5))
+            hi, mc = (214, 188, 128), (110, 88, 50)
+        elif style == "crypt" and var == 2:      # королевский склеп: тёмный мавзолей с нишами
+            s.fill(lerpc(base, (40, 40, 60), 0.6))
+            hi, mc = (96, 96, 128), (20, 20, 32)
+        for i, y in enumerate((0, 5, 10)):
+            pygame.draw.line(s, hi, (0, y + 1), (PX, y + 1))
+            pygame.draw.line(s, mc, (0, y), (PX, y))
+            off = 0 if i % 2 == 0 else 4
+            for x in range(off, PX, 8):
+                pygame.draw.line(s, mc, (x, y), (x, y + 4))
+        pygame.draw.line(s, mc, (0, 15), (PX, 15))
+        if style == "wet":
+            for _ in range(3):
+                x, y = rng.randrange(1, 15), rng.randrange(0, 6)
+                for k in range(rng.randrange(3, 7)):
+                    s.set_at((x, y + k), (130, 200, 230))
+            pygame.draw.line(s, (26, 70, 104), (0, 14), (PX, 14))
+        elif style == "acid":
+            for _ in range(3):
+                x, y = rng.randrange(1, 15), rng.randrange(0, 4)
+                for k in range(rng.randrange(4, 9)):
+                    s.set_at((x, y + k), (130, 220, 50))
+                s.set_at((x, y + k + 1), (200, 255, 120))
+        elif style == "crypt" and var == 0:      # костяной склеп: черепа в стене
+            for x, y in ((2, 2), (9, 7)):
+                rect(s, (214, 208, 190), x, y, 4, 3)
+                s.set_at((x + 1, y + 1), (30, 26, 24)); s.set_at((x + 3, y + 1), (30, 26, 24))
+        elif style == "crypt" and var == 1:      # иероглифы
+            for x, y in ((3, 2), (10, 7)):
+                pygame.draw.line(s, (90, 66, 36), (x, y), (x + 3, y))
+                s.set_at((x + 1, y + 1), (90, 66, 36)); s.set_at((x + 2, y + 2), (90, 66, 36))
+        elif style == "crypt" and var == 2:      # ниша-арка
+            rect(s, (10, 10, 18), 5, 5, 6, 10)
+            pygame.draw.ellipse(s, (10, 10, 18), (5, 2, 6, 6))
+    elif style == "block":
+        for i, y in enumerate((0, 8)):
+            off = 0 if i == 0 else 5
+            for x0 in range(-off, PX, 10):
+                bc = lerpc(base, hi, rng.random() * 0.5)
+                pygame.draw.rect(s, bc, (x0 + 1, y + 1, 9, 7))
+        for y in (0, 8):
+            pygame.draw.line(s, mortar, (0, y), (PX, y))
+        for x in (0, 10):
+            pygame.draw.line(s, mortar, (x + (0 if x == 0 else 0), 0), (x, 7))
+        pygame.draw.line(s, mortar, (5, 8), (5, 15))
+        pygame.draw.line(s, mortar, (15, 8), (15, 15))
+        pygame.draw.line(s, hi, (1, 1), (8, 1))
+    elif style == "basalt":
+        for x in range(0, PX, 4):
+            pygame.draw.line(s, mortar, (x, 0), (x + rng.choice((-1, 0, 1)), 15))
+            pygame.draw.line(s, shade_c(base, 0.2), (x + 1, 0), (x + 1, 7))
+        x, y = rng.randrange(3, 12), 0
+        for _ in range(8):
+            s.set_at((x, y), (255, 120, 30))
+            if rng.random() < 0.4:
+                s.set_at((x, y), (255, 210, 90))
+            y += 2
+            x = max(1, min(14, x + rng.choice((-1, 0, 1))))
+    elif style == "crystal":
+        s.fill(shade_c(base, -0.35))
+        for _ in range(3):
+            x, y = rng.randrange(2, 13), rng.randrange(7, 15)
+            h = rng.randrange(4, 8)
+            col = lerpc(base, hi, rng.random())
+            pygame.draw.polygon(s, col, [(x, y), (x + 1, y - h), (x + 2, y)])
+            s.set_at((x + 1, y - h + 1), (255, 255, 255))
+        pygame.draw.line(s, mortar, (0, 15), (PX, 15))
+        pygame.draw.line(s, shade_c(base, -0.1), (0, 0), (PX, 0))
+    elif style == "ice":
+        for i in range(3):
+            pygame.draw.line(s, hi, (i * 6, 0), (i * 6 + 6, 6))
+            pygame.draw.line(s, shade_c(base, 0.12), (i * 6 + 3, 8), (i * 6 + 8, 14))
+        pygame.draw.lines(s, mortar, False, [(6, 3), (8, 7), (7, 10), (10, 14)])
+        pygame.draw.line(s, hi, (0, 0), (PX, 0))
+    return s
+
+
+def make_tileset(biome, seed, alt_idx, var=0):
+    """Плитки локации в NV оттенках (для градиента цвета по карте)."""
+    B = BIOMES[biome]
+    alt = B["alts"][alt_idx % len(B["alts"])]
+    ts = {"floor": [], "deco": [], "wall": []}
+    for v in range(NV):
+        t = v / (NV - 1) * 0.55
+        fb = lerpc(B["floor"], alt, t * 0.7)
+        fd = [lerpc(c, alt, t * 0.6) for c in B["dots"]]
+        wb, wh, wm = (lerpc(c, alt, t * 0.7) for c in B["wall"])
+        ts["floor"].append([scaled(_floor_surf(biome, fb, fd, seed + i * 31 + v * 7, var)) for i in range(4)])
+        decos = []
+        for which in (1, 2):
+            sf = _floor_surf(biome, fb, fd, seed + 500 + which, var)
+            _deco_draw(sf, biome, which, random.Random(seed + which * 11 + v))
+            decos.append(scaled(sf))
+        ts["deco"].append(decos)
+        ts["wall"].append([scaled(_wall_surf(biome, B["wall_style"], (wb, wh, wm), seed + 900 + j * 5 + v, var))
+                           for j in range(2)])
+    return ts
+
+
+def hazard_sprite(kind, f):
+    s = new_sprite()
+    if kind == "lava":
+        pygame.draw.ellipse(s, (60, 24, 16), (0, 1, 16, 14))
+        pygame.draw.ellipse(s, (225, 85, 20), (1, 2, 14, 12))
+        for x, y in (((3, 5), (9, 8), (6, 10), (11, 4)) if f == 0 else ((4, 6), (10, 7), (5, 9), (9, 4))):
+            rect(s, (255, 205, 80), x, y, 2, 1)
+        rect(s, (170, 50, 10), 3 + f, 8, 2, 1)
+    elif kind == "water":
+        pygame.draw.ellipse(s, (30, 80, 140, 215), (0, 1, 16, 14))
+        pygame.draw.ellipse(s, (60, 130, 205, 215), (1, 2, 14, 12))
+        for y in (5, 9):
+            for x in range(3, 13):
+                if (x + y + f * 2) % 4 < 2:
+                    s.set_at((x, y), (170, 220, 250, 230))
+    elif kind == "acid":
+        pygame.draw.ellipse(s, (50, 110, 20), (0, 1, 16, 14))
+        pygame.draw.ellipse(s, (110, 205, 40), (1, 2, 14, 12))
+        for x, y in (((4, 5), (10, 8), (7, 10)) if f == 0 else ((5, 6), (9, 5), (6, 9))):
+            pygame.draw.circle(s, (200, 255, 120), (x, y), 1)
+        s.set_at((11 - f, 4), (240, 255, 190))
+    else:   # ice
+        pygame.draw.ellipse(s, (120, 175, 215, 230), (0, 1, 16, 14))
+        pygame.draw.ellipse(s, (190, 232, 250, 230), (1, 2, 14, 12))
+        pygame.draw.line(s, (255, 255, 255), (4, 10), (10, 4))
+        pygame.draw.line(s, (235, 250, 255), (6, 11), (11, 6))
+        s.set_at((11, 10), (255, 255, 255))
+    return scaled(s)
+
+
+# ---------------------------------------------------------------- скины монстров
+def _recolor(src, skin):
+    dark, mid, light, eye = skin
+    out = src.copy()
+    w, h = out.get_size()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = out.get_at((x, y))
+            if a < 120:
+                continue
+            if (r > 200 and g < 110 and b < 110) or (r > 230 and g > 190 and b < 110):
+                c = eye
+            else:
+                k = clamp01(((0.3 * r + 0.59 * g + 0.11 * b) / 255) * 1.15)
+                c = lerpc(dark, mid, k * 2) if k < 0.5 else lerpc(mid, light, (k - 0.5) * 2)
+            out.set_at((x, y), (c[0], c[1], c[2], a))
+    return out
+
+
+def _P(img, col, x, y, w=1, h=1):
+    pygame.draw.rect(img, col, (x * SCALE, y * SCALE, w * SCALE, h * SCALE))
+
+
+def _skin_overlay(img, biome, kind, f):
+    humanoid = kind in ("goblin", "archer", "mage")
+    rng = random.Random(hash((biome, kind)) & 0xFFFF)
+    if biome == "quarry":
+        if humanoid:
+            _P(img, (250, 200, 40), 4, 2, 8, 1)
+            _P(img, (250, 200, 40), 5, 1, 6, 1)
+        for _ in range(4):
+            _P(img, (160, 156, 146), rng.randrange(3, 13), rng.randrange(6, 13))
+    elif biome == "flooded":
+        if humanoid:
+            _P(img, (40, 150, 80), 5, 2, 1, 2)
+            _P(img, (40, 150, 80), 10, 1, 1, 3)
+        if kind == "slime":
+            for x in (4, 7, 10):
+                _P(img, (180, 238, 248), x, 14 + (f if False else 0), 1, 2)
+        _P(img, (160, 225, 255), 3, 10, 1, 2)
+        _P(img, (160, 225, 255), 12, 12 - f, 1, 2)
+    elif biome == "lava":
+        top = 0 if f else 1
+        _P(img, (255, 150, 30), 6, top, 4, 2)
+        _P(img, (255, 225, 100), 7, top, 2, 1)
+        for _ in range(5):
+            _P(img, (255, 130, 30), rng.randrange(3, 13), rng.randrange(5, 14))
+    elif biome == "crystal":
+        for x in (3, 12):
+            _P(img, (226, 170, 255), x, 5, 1, 3)
+            _P(img, (255, 245, 255), x, 5)
+        _P(img, (255, 255, 255), 5 + f * 5, 3)
+    elif biome == "crypt":
+        if kind != "bat":
+            _P(img, (208, 202, 172), 5, 9, 6, 1)
+            _P(img, (208, 202, 172), 5, 11, 6, 1)
+    elif biome == "castle":
+        _P(img, (150, 24, 40), 2, 7, 2, 7)
+        _P(img, (150, 24, 40), 12, 7, 2, 7)
+        if kind == "goblin":
+            _P(img, (150, 156, 176), 4, 2, 8, 3)
+            _P(img, (210, 40, 56), 7, 0, 2, 2)
+        if kind == "bat":
+            _P(img, (255, 255, 255), 6, 8)
+            _P(img, (255, 255, 255), 9, 8)
+    elif biome == "acid":
+        _P(img, (205, 255, 135), 4, 8, 2, 2)
+        _P(img, (205, 255, 135), 10, 6 + f, 1, 1)
+        _P(img, (205, 255, 135), 8, 11, 1, 1)
+        _P(img, (120, 230, 40), 3, 12, 1, 3)
+    elif biome == "ice":
+        _P(img, (232, 250, 255), 5, 2, 1, 2)
+        _P(img, (232, 250, 255), 8, 1, 1, 3)
+        _P(img, (232, 250, 255), 10, 2, 1, 2)
+        for _ in range(4):
+            _P(img, (255, 255, 255), rng.randrange(3, 13), rng.randrange(5, 14))
+    elif biome == "diamond":
+        for x, y in (((3, 3), (12, 10)) if f == 0 else ((12, 4), (4, 11))):
+            _P(img, (255, 255, 255), x, y)
+            _P(img, (200, 240, 255), x - 1, y)
+            _P(img, (200, 240, 255), x + 1, y)
+            _P(img, (200, 240, 255), x, y - 1)
+            _P(img, (200, 240, 255), x, y + 1)
+        _P(img, (255, 255, 255), 4, 6, 1, 1)
+        _P(img, (255, 255, 255), 11, 8, 1, 1)
+
+
+def skin_frames(base_frames, biome, kind):
+    skin = BIOMES[biome]["skin"]
+    out = []
+    for f, fr in enumerate(base_frames):
+        img = _recolor(fr, skin)
+        _skin_overlay(img, biome, kind, f)
+        out.append(img)
+    return out
+
+
+# ---------------------------------------------------------------- боссы (24x24, увеличены в 3 раза)
+def _boss_canvas():
+    s = pygame.Surface((24, 24), pygame.SRCALPHA)
+    return s, (lambda c, x, y, w, h: pygame.draw.rect(s, c, (x, y, w, h)))
+
+
+def _boss_cave(f):
+    s, R = _boss_canvas()
+    b = f
+    R((0, 0, 0, 80), 3, 21, 18, 3)
+    R((86, 72, 60), 7, 18, 4, 4); R((86, 72, 60), 13, 18, 4, 4)
+    R((112, 96, 80), 5, 9 + b, 14, 10 - b)
+    R((142, 124, 104), 7, 12 + b, 10, 6 - b)
+    R((90, 130, 70), 6, 10 + b, 2, 2); R((90, 130, 70), 15, 15 + b, 3, 2)
+    R((120, 70, 40), 6, 17, 12, 3)
+    R((112, 96, 80), 2, 9 + b, 3, 9); R((112, 96, 80), 19, 9 + b, 3, 9)
+    R((142, 124, 104), 2, 17 + b, 3, 2); R((142, 124, 104), 19, 17 + b, 3, 2)
+    R((110, 70, 40), 21, 1, 2, 15); R((86, 52, 28), 20, 0, 4, 5)
+    R((190, 190, 180), 19, 1, 1, 1); R((190, 190, 180), 24 - 1, 2, 1, 1)
+    R((130, 114, 96), 7, 3 + b, 10, 7)
+    R((130, 114, 96), 5, 5 + b, 2, 3); R((130, 114, 96), 17, 5 + b, 2, 3)
+    R((255, 220, 60), 9, 6 + b, 2, 2); R((255, 220, 60), 13, 6 + b, 2, 2)
+    R((30, 20, 20), 8, 5 + b, 4, 1); R((30, 20, 20), 12, 5 + b, 4, 1)
+    R((236, 236, 214), 9, 9 + b, 1, 2); R((236, 236, 214), 14, 9 + b, 1, 2)
+    R((60, 40, 40), 10, 9 + b, 4, 1)
+    return s
+
+
+def _boss_quarry(f):
+    s, R = _boss_canvas()
+    b = f
+    R((0, 0, 0, 80), 2, 21, 20, 3)
+    R((96, 100, 112), 6, 17, 5, 5); R((96, 100, 112), 13, 17, 5, 5)
+    R((124, 128, 142), 5, 8 + b, 14, 10)
+    R((150, 154, 168), 5, 8 + b, 14, 2)
+    R((76, 80, 92), 11, 10 + b, 1, 6); R((76, 80, 92), 8, 13 + b, 4, 1); R((76, 80, 92), 14, 12 + b, 3, 1)
+    R((240, 200, 60), 7, 11 + b, 1, 1); R((240, 200, 60), 16, 14 + b, 1, 1)
+    R((110, 114, 128), 1, 8 + b, 5, 5); R((110, 114, 128), 18, 8 + b, 5, 5)
+    R((124, 128, 142), 1, 13 + b, 4, 7); R((124, 128, 142), 19, 13 + b, 4, 7)
+    R((96, 100, 112), 0, 20, 6, 2); R((96, 100, 112), 18, 20, 6, 2)
+    R((104, 108, 122), 8, 2 + b, 8, 6)
+    R((140, 144, 158), 8, 2 + b, 8, 1)
+    R((255, 150, 30), 9, 4 + b, 2, 2); R((255, 150, 30), 13, 4 + b, 2, 2)
+    R((60, 62, 74), 10, 7 + b, 4, 1)
+    return s
+
+
+def _boss_flooded(f):
+    s, R = _boss_canvas()
+    b = f
+    R((0, 0, 0, 70), 2, 21, 20, 3)
+    body, dark, light = (44, 128, 150), (28, 86, 108), (110, 200, 220)
+    pygame.draw.ellipse(s, dark, (4, 1 + b, 16, 14))
+    pygame.draw.ellipse(s, body, (5, 2 + b, 14, 12))
+    R(light, 8, 3 + b, 4, 1); R(light, 7, 4 + b, 2, 1)
+    R((255, 255, 255), 8, 8 + b, 3, 3); R((255, 255, 255), 14, 8 + b, 3, 3)
+    R((20, 20, 40), 9, 9 + b, 2, 2); R((20, 20, 40), 15, 9 + b, 2, 2)
+    R((255, 220, 90), 9, 9 + b, 1, 1); R((255, 220, 90), 15, 9 + b, 1, 1)
+    for i, x in enumerate((3, 6, 9, 12, 15, 18)):
+        sw = ((i + f) % 2) * 2 - 1
+        for k in range(8):
+            R(body if k % 2 == 0 else dark, x + (sw * (k // 3)), 14 + k, 3, 1)
+        R(light, x + sw * 2, 20, 1, 1)
+    R((230, 200, 140), 11, 12 + b, 3, 1)
+    return s
+
+
+def _boss_lava(f):
+    s, R = _boss_canvas()
+    b = f
+    R((0, 0, 0, 80), 2, 21, 20, 3)
+    rock, dark = (58, 46, 50), (34, 26, 30)
+    R(dark, 6, 17, 5, 5); R(dark, 13, 17, 5, 5)
+    R(rock, 5, 8 + b, 14, 10)
+    R(dark, 5, 16, 14, 2)
+    for x, y, w2, h2 in ((7, 10, 1, 5), (12, 9, 1, 6), (9, 14, 4, 1), (15, 12, 2, 1)):
+        R((255, 120, 30), x, y + b, w2, h2)
+        R((255, 220, 90), x, y + b, 1, 1)
+    R(rock, 1, 8 + b, 5, 5); R(rock, 18, 8 + b, 5, 5)
+    R(rock, 1, 13 + b, 4, 7); R(rock, 19, 13 + b, 4, 7)
+    R((255, 120, 30), 1, 20, 4, 2); R((255, 120, 30), 19, 20, 4, 2)
+    R(rock, 8, 2 + b, 8, 6)
+    pygame.draw.polygon(s, dark, [(8, 3 + b), (5, 0), (9, 2 + b)])
+    pygame.draw.polygon(s, dark, [(16, 3 + b), (19, 0), (15, 2 + b)])
+    R((255, 230, 90), 9, 4 + b, 2, 2); R((255, 230, 90), 13, 4 + b, 2, 2)
+    R((255, 120, 30), 10, 7 + b, 4, 1)
+    top = 0 if f else 1
+    pygame.draw.polygon(s, (255, 150, 30), [(9, 2 + b), (12, top - 1 if top else -0), (15, 2 + b)])
+    return s
+
+
+def _boss_crystal(f):
+    s, R = _boss_canvas()
+    b = f
+    R((0, 0, 0, 80), 3, 21, 18, 3)
+    c1, c2, c3 = (120, 70, 190), (176, 116, 240), (236, 196, 255)
+    pygame.draw.polygon(s, c1, [(12, 7 + b), (5, 12), (7, 21), (17, 21), (19, 12)])
+    pygame.draw.polygon(s, c2, [(12, 7 + b), (8, 12), (9, 20), (14, 20), (16, 12)])
+    R(c3, 11, 9 + b, 1, 8)
+    for x, y, h in ((2, 13, 7), (20, 12, 8), (4, 8, 5), (18, 7, 6)):
+        pygame.draw.polygon(s, c2, [(x, y + h), (x + 1, y - (1 if f else 0)), (x + 3, y + h)])
+        R(c3, x + 1, y + 1, 1, 2)
+    R((70, 36, 120), 8, 3 + b, 8, 5)
+    R(c2, 8, 3 + b, 8, 1)
+    R((255, 255, 255), 9, 5 + b, 2, 2); R((255, 255, 255), 13, 5 + b, 2, 2)
+    R((240, 100, 220), 10, 6 + b, 1, 1); R((240, 100, 220), 14, 6 + b, 1, 1)
+    pygame.draw.polygon(s, c3, [(12, 0), (10, 3 + b), (14, 3 + b)])
+    return s
+
+
+def _boss_crypt(f):
+    s, R = _boss_canvas()
+    b = f
+    R((0, 0, 0, 70), 3, 21, 18, 3)
+    robe, trim = (54, 36, 78), (110, 80, 150)
+    pygame.draw.polygon(s, robe, [(8, 9 + b), (3, 22), (21, 22), (16, 9 + b)])
+    R(trim, 3, 21, 18, 1); R(trim, 11, 10 + b, 2, 11)
+    R((190, 186, 168), 4, 11 + b, 3, 7); R((190, 186, 168), 17, 11 + b, 3, 7)
+    R((130, 80, 40), 21, 2, 1, 19)
+    pygame.draw.circle(s, (120, 255, 150), (21, 3 + b), 2)
+    R((255, 255, 255), 21, 2 + b, 1, 1)
+    R((218, 214, 196), 8, 2 + b, 8, 7)
+    R((218, 214, 196), 9, 9 + b, 6, 2)
+    R((20, 40, 24), 9, 4 + b, 2, 3); R((20, 40, 24), 13, 4 + b, 2, 3)
+    R((120, 255, 150), 9, 5 + b, 1, 1); R((120, 255, 150), 14, 5 + b, 1, 1)
+    R((20, 20, 20), 11, 7 + b, 2, 2)
+    R((240, 200, 70), 8, 0 + b, 8, 2)
+    for x in (8, 11, 14):
+        R((240, 200, 70), x, -1 if False else 0, 2, 1)
+    R((220, 50, 60), 11, 0 + b, 2, 1)
+    R((140, 255, 160, 120), 2, 4 + (1 - f), 1, 1)
+    return s
+
+
+def _boss_castle(f):
+    s, R = _boss_canvas()
+    b = f
+    steel, dark, light = (136, 148, 176), (84, 94, 122), (206, 218, 244)
+    for i in range(5):                     # призрачный «хвост» вместо ног
+        R((150, 170, 255, 190 - i * 38), 7 + i, 17 + i, 10 - 2 * i, 1)
+    R((70, 36, 60), 3, 10 + b, 3, 8); R((70, 36, 60), 18, 10 + b, 3, 8)
+    R(steel, 6, 9 + b, 12, 9)
+    R(light, 6, 9 + b, 12, 1); R(dark, 6, 17, 12, 1)
+    R(dark, 11, 10 + b, 2, 7)
+    R(steel, 2, 8 + b, 5, 4); R(steel, 17, 8 + b, 5, 4)
+    R(light, 2, 8 + b, 5, 1); R(light, 17, 8 + b, 5, 1)
+    R(dark, 3, 12 + b, 3, 6); R(dark, 18, 12 + b, 3, 6)
+    R((220, 226, 240), 22, 0, 1, 14); R((255, 215, 90), 21, 14, 3, 1); R((120, 70, 40), 22, 15, 1, 3)
+    R(steel, 8, 1 + b, 8, 8)
+    R(light, 8, 1 + b, 8, 1)
+    R(dark, 8, 5 + b, 8, 1)
+    R((120, 220, 255), 9, 4 + b, 6, 1)
+    R((190, 40, 60), 11, -1 + b if b else 0, 2, 2)
+    R((255, 255, 255, 170), 3 + f * 17, 2, 1, 1)
+    return s
+
+
+def _boss_acid(f):
+    s, R = _boss_canvas()
+    b = f
+    R((0, 0, 0, 70), 2, 21, 20, 3)
+    pygame.draw.ellipse(s, (60, 130, 24), (1, 6 + b, 22, 16 - b))
+    pygame.draw.ellipse(s, (110, 205, 40), (2, 7 + b, 20, 14 - b))
+    pygame.draw.ellipse(s, (170, 240, 90), (5, 8 + b, 8, 4))
+    for x, y in ((6, 15), (16, 13), (12, 18)):
+        pygame.draw.circle(s, (210, 255, 140), (x, y), 1)
+    R((220, 230, 200), 15, 14 + b, 4, 3); R((20, 40, 10), 16, 15 + b, 1, 1); R((20, 40, 10), 18, 15 + b, 1, 1)
+    R((255, 255, 255), 6, 10 + b, 4, 4); R((255, 255, 255), 12, 10 + b, 4, 4)
+    R((30, 60, 10), 8, 12 + b, 2, 2); R((30, 60, 10), 14, 12 + b, 2, 2)
+    R((30, 60, 10), 9, 17 + b, 6, 1)
+    for x in (6, 11, 16):
+        R((240, 200, 70), x, 4 + b + (f if x == 11 else 0), 2, 3)
+    R((240, 200, 70), 6, 6 + b, 12, 1)
+    R((120, 230, 40), 3, 20, 1, 3 + f)
+    return s
+
+
+def _boss_ice(f):
+    s, R = _boss_canvas()
+    b = f
+    R((0, 0, 0, 70), 2, 21, 20, 3)
+    fur, ice, light = (200, 226, 244), (110, 170, 214), (250, 255, 255)
+    R(ice, 6, 18, 5, 4); R(ice, 13, 18, 5, 4)
+    R(fur, 5, 8 + b, 14, 11)
+    R(light, 7, 10 + b, 10, 2)
+    R(ice, 1, 8 + b, 4, 11); R(ice, 19, 8 + b, 4, 11)
+    R(fur, 0, 17 + b, 5, 3); R(fur, 19, 17 + b, 5, 3)
+    R((120, 90, 60), 22, 1, 2, 17); R((190, 236, 255), 20, 0, 5, 5)
+    R((235, 248, 255), 21, 1, 3, 2)
+    R((226, 214, 190), 8, 2 + b, 8, 6)
+    R((90, 130, 190), 7, 1 + b, 10, 2)
+    R((226, 214, 190), 5, 0 + b, 2, 3); R((226, 214, 190), 17, 0 + b, 2, 3)
+    R((60, 140, 255), 9, 4 + b, 2, 2); R((60, 140, 255), 13, 4 + b, 2, 2)
+    for x in (8, 10, 12, 14):
+        R(light, x, 8 + b, 2, 3 + (x % 3))
+    return s
+
+
+def _boss_diamond(f):
+    s, R = _boss_canvas()
+    b = f
+    R((0, 0, 0, 60), 3, 21, 18, 3)
+    c1, c2, c3 = (120, 180, 220), (190, 235, 255), (255, 255, 255)
+    pygame.draw.polygon(s, c1, [(12, 6 + b), (4, 11), (7, 21), (17, 21), (20, 11)])
+    pygame.draw.polygon(s, c2, [(12, 6 + b), (8, 11), (9, 20), (15, 20), (16, 11)])
+    pygame.draw.polygon(s, c3, [(12, 8 + b), (10, 12), (12, 19), (14, 12)])
+    for x, y in ((1, 9), (20, 8)):
+        pygame.draw.polygon(s, c2, [(x, y + 8), (x + 1, y - 1 + f), (x + 3, y + 8)])
+        R(c3, x + 1, y + 2, 1, 3)
+    pygame.draw.polygon(s, c1, [(12, 0 + b), (7, 5 + b), (12, 9 + b), (17, 5 + b)])
+    pygame.draw.polygon(s, c2, [(12, 1 + b), (9, 5 + b), (12, 8 + b), (15, 5 + b)])
+    R((40, 90, 140), 10, 4 + b, 1, 2); R((40, 90, 140), 13, 4 + b, 1, 2)
+    for x, y in (((2, 3), (21, 15), (5, 19)) if f == 0 else ((21, 3), (2, 15), (19, 19))):
+        R(c3, x, y, 1, 1); R(c2, x - 1, y, 3, 1); R(c2, x, y - 1, 1, 3)
+    return s
+
+
+BOSS_DRAW = {"cave": _boss_cave, "quarry": _boss_quarry, "flooded": _boss_flooded, "lava": _boss_lava,
+             "crystal": _boss_crystal, "crypt": _boss_crypt, "castle": _boss_castle, "acid": _boss_acid,
+             "ice": _boss_ice, "diamond": _boss_diamond}
+
+
+def boss_sprite(biome, f):
+    return pygame.transform.scale(BOSS_DRAW[biome](f), (24 * SCALE, 24 * SCALE))
+
+
+# ---------------------------------------------------------------- значки на зельях и свитках
+ICON_GLYPH = {
+    "plus":  ["..##..", "..##..", "######", "######", "..##..", "..##.."],
+    "heart": [".##.##", "######", "######", ".####.", "..##..", "......"],
+    "fist":  ["#.#.#.", "######", "######", "######", ".####.", "..##.."],
+    "shield": ["######", "######", "######", ".####.", ".####.", "..##.."],
+    "ghost": ["..##..", ".#..#.", "..##..", "#.##.#", ".#..#.", "#....#"],
+    "drop":  ["..##..", "..##..", ".####.", "######", "######", ".####."],
+    "flame": ["..#...", "..##..", ".###.#", "######", ".####.", "..##.."],
+    "cross": ["#....#", ".#..#.", "..##..", "..##..", ".#..#.", "#....#"],
+}
+
+
+def _glyph(s, name, col, x0, y0):
+    for j, row in enumerate(ICON_GLYPH[name]):
+        for i, ch in enumerate(row):
+            if ch == "#":
+                s.set_at((x0 + i, y0 + j), col)
+
+
+def potion_sprite(col, light, glyph=None, gcol=(255, 250, 240), alpha=255):
+    s = new_sprite()
+    c, l = (col[0], col[1], col[2], alpha), (light[0], light[1], light[2], alpha)
+    shadow(s, 4, 8)
+    rect(s, (150, 105, 60, alpha), 6, 3, 4, 2)
+    rect(s, (200, 205, 225, alpha), 7, 5, 2, 2)
+    rect(s, c, 5, 6, 6, 1)
+    rect(s, c, 4, 7, 8, 7)
+    if glyph:
+        _glyph(s, glyph, (gcol[0], gcol[1], gcol[2], 255 if alpha == 255 else 235), 5, 8)
+    else:
+        rect(s, l, 5, 8, 1, 3)
+    if alpha < 255:     # контур «призрачной» бутылки
+        pygame.draw.rect(s, (220, 240, 255, 200), (4, 7, 8, 7), 1)
+    return scaled(s, 2)
+
+
+def scroll_sprite(col, glyph=None):
+    s = new_sprite()
+    shadow(s, 3, 10)
+    rect(s, (225, 205, 160), 3, 4, 10, 9)
+    rect(s, (170, 140, 90), 2, 3, 12, 2)
+    rect(s, (170, 140, 90), 2, 12, 12, 2)
+    if glyph:
+        _glyph(s, glyph, (col[0], col[1], col[2], 255), 5, 6)
+    else:
+        rect(s, (150, 125, 85), 5, 7, 6, 1)
+        rect(s, col, 7, 9, 3, 3)
+    return scaled(s, 2)
+
+
+# ---------------------------------------------------------------- меч и секира: вид зависит от уровня заточки
+def sword_look(lvl):
+    if lvl >= 10:
+        return dict(blade=(255, 238, 168), edge=(255, 255, 235), guard=(255, 215, 80), glow=(255, 150, 40), ln=9, fire=True)
+    if lvl >= 9:
+        return dict(blade=(255, 170, 70), edge=(255, 225, 150), guard=(255, 215, 80), glow=(255, 100, 30), ln=9, fire=True)
+    if lvl >= 7:
+        return dict(blade=(190, 130, 255), edge=(238, 205, 255), guard=(255, 215, 80), glow=(150, 255, 255), ln=9)
+    if lvl >= 6:
+        return dict(blade=(250, 210, 90), edge=(255, 242, 175), guard=(230, 60, 60), ln=9)
+    if lvl >= 4:
+        return dict(blade=(110, 215, 235), edge=(190, 250, 255), guard=(255, 215, 80), ln=8)
+    if lvl >= 2:
+        return dict(blade=(160, 190, 232), edge=(216, 232, 252), guard=(255, 215, 80), ln=8)
+    return dict(blade=(205, 210, 225), edge=(238, 242, 252), guard=(255, 230, 120), ln=8)
+
+
+def axe_look(lvl):
+    tier = min(5, lvl // 2)
+    return [((170, 176, 195), (70, 72, 90), (240, 245, 255)),
+            ((150, 190, 232), (50, 70, 110), (225, 240, 255)),
+            ((110, 215, 235), (30, 90, 110), (210, 255, 255)),
+            ((250, 210, 90), (120, 80, 20), (255, 245, 190)),
+            ((190, 130, 255), (70, 36, 120), (240, 215, 255)),
+            ((255, 160, 60), (130, 50, 10), (255, 240, 170))][tier]
+
+
+def draw_sword(s, hand, ang, lvl=0):
+    hx, hy = hand
+    L = sword_look(lvl)
+    ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+    pygame.draw.line(s, (120, 70, 40), ip(hx, hy), ip(hx - ca * 2, hy - sa * 2))             # рукоять
+    for i in range(1, L["ln"] + 1):                                                          # клинок
+        col = L["blade"] if i % 2 else L["edge"]
+        s.set_at(ip(hx + ca * i, hy + sa * i), col)
+        if "glow" in L and i % 3 == 0:
+            s.set_at(ip(hx + ca * i - sa, hy + sa * i + ca), L["glow"])
+    if L.get("fire"):
+        tx, ty = hx + ca * (L["ln"] + 1), hy + sa * (L["ln"] + 1)
+        s.set_at(ip(tx, ty), (255, 170, 40))
+        s.set_at(ip(tx - sa, ty + ca), (255, 90, 20))
+    pygame.draw.line(s, L["guard"], ip(hx - sa * 1.6, hy + ca * 1.6), ip(hx + sa * 1.6, hy - ca * 1.6))   # гарда
+
+
+def draw_axe(s, hand, ang, lvl=0):
+    hx, hy = hand
+    head, outl, edge = axe_look(lvl)
+    ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+    d, p = (ca, sa), (-sa, ca)
+    pygame.draw.line(s, (120, 80, 45), ip(hx - ca * 2, hy - sa * 2), ip(hx + ca * 8, hy + sa * 8))
+    cx, cy = hx + ca * 6, hy + sa * 6
+    pts = [ip(cx - d[0] * 2, cy - d[1] * 2),
+           ip(cx - d[0] * 2 + p[0] * 3.2, cy - d[1] * 2 + p[1] * 3.2),
+           ip(cx + d[0] * 2 + p[0] * 3.8, cy + d[1] * 2 + p[1] * 3.8),
+           ip(cx + d[0] * 2.5, cy + d[1] * 2.5)]
+    pygame.draw.polygon(s, head, pts)
+    pygame.draw.polygon(s, outl, pts, 1)
+    pygame.draw.line(s, edge, pts[1], pts[2])
+
+
+def weapon_icon(kind, lvl=0):
+    s = new_sprite()
+    if kind == "axe":
+        head, outl, edge = axe_look(lvl)
+        pygame.draw.line(s, (120, 80, 45), (3, 14), (11, 4))
+        pygame.draw.line(s, (120, 80, 45), (4, 14), (12, 4))
+        pts = [(8, 3), (14, 2), (14, 8), (11, 7)]
+        pygame.draw.polygon(s, head, pts)
+        pygame.draw.polygon(s, outl, pts, 1)
+        pygame.draw.line(s, edge, (14, 2), (14, 8))
+    else:
+        L = sword_look(lvl)
+        pygame.draw.line(s, L["blade"], (5, 11), (13, 3))
+        pygame.draw.line(s, L["edge"], (6, 11), (14, 3))
+        pygame.draw.line(s, L["guard"], (3, 9), (7, 13))
+        pygame.draw.line(s, (120, 70, 40), (2, 14), (4, 12))
+        if L.get("fire"):
+            s.set_at((14, 2), (255, 160, 40))
+            s.set_at((15, 1), (255, 90, 20))
+    return scaled(s, 2)
+
+
 class Assets:
     def __init__(self):
-        self.floor = [floor_tile(i) for i in range(4)]
-        self.moss = floor_tile(11, 1)
-        self.bones = floor_tile(12, 2)
-        self.wall = wall_tile()
-        self.torch = [torch_sprite(0), torch_sprite(1)]
-        self._pb, self._pf = {}, {}          # кеши кадров героя
+        self._torch = {}
+        self._pb, self._pf, self._pbig = {}, {}, {}          # кеши кадров героя
+        self._mobs, self._mobs_w, self._boss, self._boss_w = {}, {}, {}, {}
+        self._wicons = {}
         self.player = self.pframe("idle", 0, 0, "sword")
+        _ts = make_tileset("cave", 7, 0)
+        self.floor, self.wall = _ts["floor"][0], _ts["wall"][0][0]      # плитки для фона меню
         self.chest = chest_sprite()
         self.spikes = spikes_sprite()
         self.barrel = barrel_sprite()
@@ -843,7 +1746,7 @@ class Assets:
         self.exit = exit_sprite()
         self.elder = elder_sprite()
         self.merchant = merchant_sprite()
-        self.wicon = {"sword": weapon_icon("sword"), "axe": weapon_icon("axe")}
+        self.haz = {k: [hazard_sprite(k, 0), hazard_sprite(k, 1)] for k in ("lava", "water", "acid", "ice")}
         self.mob = {
             "goblin": [goblin_sprite()],
             "bat": [bat_sprite(True), bat_sprite(False)],
@@ -856,7 +1759,11 @@ class Assets:
         self.mob_w = {k: [whiten(f) for f in v] for k, v in self.mob.items()}
         self.icons, self.icons_dim = {}, {}
         for k, d in ITEMS.items():
-            ic = potion_sprite(d["col"], d["light"]) if d["kind"] == "potion" else scroll_sprite(d["col"])
+            if d["kind"] == "potion":
+                ic = potion_sprite(d["col"], d["light"], d.get("glyph"), d.get("gcol", (255, 250, 240)),
+                                   d.get("alpha", 255))
+            else:
+                ic = scroll_sprite(d["col"], d.get("glyph"))
             self.icons[k] = ic
             dim = ic.copy()
             dim.set_alpha(80)
@@ -870,13 +1777,16 @@ class Assets:
             "walk": [pygame.transform.scale(self.pframe("walk", i, 0, "sword"), (96, 96)) for i in range(4)],
             "goblin": pygame.transform.scale(self.mob["goblin"][0], (96, 96)),
             "bat": pygame.transform.scale(self.mob["bat"][0], (96, 96)),
-            "torch": [pygame.transform.scale(t, (TILE * 2, TILE * 2)) for t in self.torch],
+            "torch": [pygame.transform.scale(t, (TILE * 2, TILE * 2)) for t in self.torch_set("cave")],
         }
         self.dim = pygame.Surface((TILE, TILE), pygame.SRCALPHA)
         self.dim.fill((6, 4, 12, 170))
         self.tele = pygame.Surface((TILE, TILE), pygame.SRCALPHA)     # подсветка дуги секиры
         self.tele.fill((255, 120, 40, 95))
         pygame.draw.rect(self.tele, (255, 190, 90, 230), (0, 0, TILE, TILE), 3)
+        self.tele_boss = pygame.Surface((TILE, TILE), pygame.SRCALPHA)   # предупреждение об ударе босса
+        self.tele_boss.fill((235, 40, 40, 100))
+        pygame.draw.rect(self.tele_boss, (255, 110, 90, 240), (0, 0, TILE, TILE), 3)
         self.glow = make_glow(110)
         self.glow_big = make_glow(320)
         self.view = pygame.Surface((MAP_W, MAP_H))
@@ -889,29 +1799,65 @@ class Assets:
         self.vigs = [make_vignette(0.3 + 0.7 * k / 5) for k in range(6)]   # 6 степеней пульсации
         self._lights = {}
 
-    def pframe(self, anim, f, armor, weapon, white=False, left=False):
+    # ---- факелы своего цвета в каждой локации
+    def torch_set(self, biome):
+        if biome not in self._torch:
+            c1, c2 = BIOMES[biome]["torch"]
+            self._torch[biome] = [torch_sprite(0, c1, c2), torch_sprite(1, c1, c2)]
+        return self._torch[biome]
+
+    # ---- герой
+    def pframe(self, anim, f, armor, weapon, white=False, left=False, wl=0):
         """Кадр героя из кеша. Кадры рисуются один раз, потом переиспользуются."""
-        key = (anim, f, armor, weapon, white, left)
+        key = (anim, f, armor, weapon, wl, white, left)
         img = self._pf.get(key)
         if img is None:
-            bk = (anim, f, armor, weapon)
+            bk = (anim, f, armor, weapon, wl)
             base = self._pb.get(bk)
             if base is None:
-                base = self._pb[bk] = build_player(anim, f, armor, weapon)
+                base = self._pb[bk] = build_player(anim, f, armor, weapon, wl)
             img = whiten(base) if white else base
             if left:
                 img = pygame.transform.flip(img, True, False)
             self._pf[key] = img
         return img
 
+    def pframe_big(self, anim, f, armor, weapon, wl, k=4):
+        key = (anim, f, armor, weapon, wl, k)
+        if key not in self._pbig:
+            self._pbig[key] = pygame.transform.scale(self.pframe(anim, f, armor, weapon, wl=wl), (PX * k * SCALE // 1,) * 2)
+        return self._pbig[key]
+
+    def weapon_icon(self, kind, lvl):
+        key = (kind, lvl)
+        if key not in self._wicons:
+            self._wicons[key] = weapon_icon(kind, lvl)
+        return self._wicons[key]
+
+    # ---- монстры в «шкурках» локации
+    def mob_frames(self, kind, biome, white=False):
+        if biome == "cave" or kind not in ("goblin", "bat", "slime", "archer", "mage", "ogre"):
+            return (self.mob_w if white else self.mob)[kind]
+        key = (kind, biome)
+        if key not in self._mobs:
+            self._mobs[key] = skin_frames(self.mob[kind], biome, kind)
+            self._mobs_w[key] = [whiten(f) for f in self._mobs[key]]
+        return (self._mobs_w if white else self._mobs)[key]
+
+    def mob_img(self, kind, t, white=False, biome="cave"):
+        frames = self.mob_frames(kind, biome, white)
+        return frames[(t // 140) % len(frames)]
+
+    def boss_frames(self, biome, white=False):
+        if biome not in self._boss:
+            self._boss[biome] = [boss_sprite(biome, 0), boss_sprite(biome, 1)]
+            self._boss_w[biome] = [whiten(f) for f in self._boss[biome]]
+        return (self._boss_w if white else self._boss)[biome]
+
     def light(self, radius):
         if radius not in self._lights:
             self._lights[radius] = [make_light(int((radius + 1.5) * 2 * TILE) + d) for d in (-16, 0, 16)]
         return self._lights[radius]
-
-    def mob_img(self, kind, t, white=False):
-        frames = (self.mob_w if white else self.mob)[kind]
-        return frames[(t // 140) % len(frames)]
 
 
 # ============================================================ генерация этажа
@@ -993,14 +1939,21 @@ def generate_level():
 
 # ============================================================ сущности
 class Mob:
-    def __init__(self, kind, x, y, depth):
+    def __init__(self, kind, x, y, depth, biome="cave"):
         d = MOBS[kind]
+        boss = bool(d.get("boss"))
         self.kind = kind
+        self.biome = biome
         self.x, self.y = x, y
         self.rx, self.ry = float(x), float(y)
-        hs, ds = 1 + 0.18 * (depth - 1), 1 + 0.10 * (depth - 1)
+        hs = 1 + (0.10 if boss else 0.18) * (depth - 1)
+        ds = 1 + (0.08 if boss else 0.10) * (depth - 1)
         self.max = self.hp = int(d["hp"] * hs)
         self.dmg = (max(1, int(d["dmg"][0] * ds)), max(2, int(d["dmg"][1] * ds)))
+        names = BIOME_NAMES.get(biome, {}).get(kind)
+        self.name = names[0] if names else d["name"]
+        skin = BIOMES[biome]["skin"] if names else None
+        self.col = skin[1] if skin else d["col"]
         self.awake = False
         self.cd = 0
         self.charge = False
@@ -1008,6 +1961,9 @@ class Mob:
         self.flash = 0
         self.lunge = None
         self.seed = random.random() * 10
+        self.pend = None                      # подготовленный удар босса (предупреждение на полу)
+        self.split_stage = 0
+        self.cds = {n: random.randint(1, 3) for n, _ in d.get("kit", [])}
 
 
 class NPC:
@@ -1087,6 +2043,7 @@ class Shop:
         self.g, self.npc = g, npc
         self.sel = 0
         self.t = 0
+        self.buy_t = -999
         self.msg = random.choice(MERCH_HELLO)
 
     def entries(self):
@@ -1104,6 +2061,8 @@ class Shop:
             price = None if lvl >= cap else int(base * growth ** lvl)
             if key == "armor" and lvl < cap:
                 desc = f"{desc}: {ARMOR_STAGES[lvl + 1]}"
+            if key == "weapon" and lvl < cap:
+                desc = f"{desc}. Новый вид: {SWORD_STAGES[lvl + 1]}"
             res.append(("up", key, f"{name} (ур. {lvl})", desc, price))
         return res
 
@@ -1132,6 +2091,7 @@ class Shop:
             g.sfx.play("bump")
             return
         g.gold -= price
+        self.buy_t = self.t
         if kind == "item":
             g.inv[key] += 1
             g.slot_t[key] = 14
@@ -1144,6 +2104,8 @@ class Shop:
                 g.compute_fov()
             if key == "armor":
                 g.toast(f"Доспех: {ARMOR_STAGES[g.up['armor']]}", (190, 200, 225))
+            if key == "weapon":
+                g.toast(f"Клинок: {SWORD_STAGES[g.up['weapon']]}", (255, 225, 140))
             self.msg = "Отличный выбор! Теперь ты сильнее."
         g.sfx.play("coin")
         px, py = tc(g.px, g.py)
@@ -1151,7 +2113,7 @@ class Shop:
 
     def draw(self, screen, A, F):
         g = self.g
-        r = pygame.Rect(110, 14, MAP_W - 220, MAP_H - 28)
+        r = pygame.Rect(14, 14, 640, MAP_H - 28)
         panel(screen, r)
         draw_text(screen, F["big"], f"Лавка — {self.npc.name}", GOLD, r.centerx, r.y + 8, "c")
         pygame.draw.circle(screen, GOLD, (r.x + 28, r.y + 60), 8)
@@ -1180,28 +2142,64 @@ class Shop:
                 pygame.draw.circle(screen, GOLD, (row.right - 16, row.y + 13), 7)
             y += rowh
         e = ents[self.sel]
-        draw_text(screen, F["small"], e[3], BLUE, r.x + 20, r.bottom - 62)
-        draw_text(screen, F["small"], f"«{self.msg}»", GRAY, r.x + 20, r.bottom - 38)
-        draw_text(screen, F["small"], "W/S выбрать • Enter купить • Esc выйти",
-                  GRAY, r.right - 16, r.bottom - 38, "r")
+        draw_text(screen, F["small"], fit_text(F["small"], e[3], r.w - 36), BLUE, r.x + 20, r.bottom - 64)
+        draw_text(screen, F["small"], f"«{self.msg}»", GRAY, r.x + 20, r.bottom - 42)
+        draw_text(screen, F["small"], "W/S выбрать • Enter купить • Esc выйти", GRAY, r.right - 16, r.bottom - 22, "r")
+        self.draw_hero(screen, A, F)
+
+    def draw_hero(self, screen, A, F):
+        """Справа — наш герой «как в инвентаре»: видно, как меняются броня и оружие."""
+        g = self.g
+        cr = pygame.Rect(666, 14, MAP_W - 666 - 14, MAP_H - 28)
+        panel(screen, cr)
+        draw_text(screen, F["normal_b"], g.name, GOLD, cr.centerx, cr.y + 8, "c")
+        cx, cy = cr.centerx, cr.y + 178
+        glow = pygame.Surface((220, 220), pygame.SRCALPHA)
+        for rr in range(100, 0, -10):
+            pygame.draw.circle(glow, (120, 90, 190, 6 + (100 - rr) // 9), (110, 110), rr)
+        screen.blit(glow, (cx - 110, cy - 86))
+        pygame.draw.ellipse(screen, (40, 32, 56), (cx - 78, cy + 66, 156, 34))
+        pygame.draw.ellipse(screen, (96, 76, 138), (cx - 78, cy + 66, 156, 34), 2)
+        age = self.t - self.buy_t
+        if 0 <= age < 26:                                   # вспышка после покупки
+            rad = 40 + age * 5
+            pygame.draw.circle(screen, GOLD, (cx, cy + 10), rad, max(1, 5 - age // 6))
+        wp = g.weapon
+        wl = g.up["weapon"] if wp == "sword" else g.up["axe"]
+        frame = (pygame.time.get_ticks() // 520) % 2
+        img = A.pframe_big("idle", frame, g.up["armor"], wp, wl, 4)
+        screen.blit(img, (cx - img.get_width() // 2, cy - 100 + (frame if age > 26 else 0)))
+        lo, hi = g.atk_range()
+        a = g.up["armor"]
+        weapon_line = SWORD_STAGES[g.up["weapon"]] if wp == "sword" else f"Секира, ур. {g.up['axe']}"
+        lines = [(f"Уровень {g.lvl}", TEXT), (f"Здоровье {g.hp}/{g.max_hp}", GREEN),
+                 (f"Атака {lo}–{hi}   Крит {int(g.crit_chance() * 100)}%", TEXT),
+                 (f"Броня {g.armor_val()}  (ур. {a}/10)", (190, 200, 225)),
+                 (ARMOR_STAGES[a].capitalize() if a else "Простая ряса", GRAY),
+                 (weapon_line, (255, 225, 140)), (f"Свет {g.light_radius()}", GRAY)]
+        yy = cr.y + 308
+        for i, (s, col) in enumerate(lines):
+            draw_text(screen, F["small"], fit_text(F["small"], s, cr.w - 24), col, cr.centerx, yy + i * 22, "c")
 
 
 # ============================================================ игра
 class Game:
-    def __init__(self, name, sfx, rec):
+    def __init__(self, name, sfx, rec, data=None):
         self.name, self.sfx, self.rec = name, sfx, rec
         self.lvl, self.xp = 1, 0
         self.up = {k: 0 for k in ("weapon", "armor", "vit", "lamp", "crit", "axe")}
         self.hp = self.max_hp
         self.gold = self.total_gold = self.kills = self.turn = self.done_quests = 0
         self.depth = 1
+        self.biome = "cave"             # текущая локация
+        self.biome_hist = ["cave"]      # какие локации уже были (чтобы не повторялись подряд)
+        self.new_biome = False
         self.inv = {k: 0 for k in ORDER}
         self.inv["heal"] = 2
         self.weapon = "sword"           # sword / axe
         self.has_axe = False
         self.axe_pending = None         # [dx, dy, x, y, задержка] — замах секиры
         self.st = {}
-        self.haste_flip = False
         self.quests = []
         self.over = None
         self.cause = ""
@@ -1224,15 +2222,28 @@ class Game:
         self.xp_disp = 0.0
         self.gold_disp = 0.0
         self.slot_t = {k: 0 for k in ORDER}
-        self.new_floor()
-        self.snap_camera()
-        self.say(f"Приветствуем, {name}! Спускайся глубже, копи золото и становись сильнее.", TEXT)
-        self.say("Загляни к торговцу и старцу — на первом этаже они рядом.", GRAY)
+        self.cut = None                 # катсцена: заход в локацию / появление босса
+        self.bars = 0.0                 # чёрные полосы кино
+        self.reveal = None
+        self.walk_from = None
+        self.haz, self.tele = {}, []    # лава/вода/кислота/лёд и предупреждения об ударах боссов
+        self.focus = (0.0, 0.0)
+        self.camx = self.camy = 0
+        self.tile_seed, self.tile_alt, self.crypt_var, self.grad = 1, 0, 0, 0.0
+        if data:
+            self.load_data(data)
+        else:
+            self.new_floor()
+            self.snap_camera()
+            self.say(f"Приветствуем, {name}! Спускайся глубже, копи золото и становись сильнее.", TEXT)
+            self.say("Загляни к торговцу и старцу — на первом этаже они рядом.", GRAY)
+            self.start_cutscene(intro=True)
 
     # ---- характеристики
     @property
     def max_hp(self):
         return 100 + 10 * (self.lvl - 1) + 20 * self.up["vit"]
+
 
     def atk_range(self, weapon=None):
         weapon = weapon or self.weapon
@@ -1270,7 +2281,8 @@ class Game:
 
     def blocked(self, x, y):
         return (self.grid[y][x] == 1 or (x, y) == (self.px, self.py) or self.mob_at(x, y)
-                or (x, y) in self.npcs or (x, y) in self.fountains or (x, y) in self.barrels)
+                or (x, y) in self.npcs or (x, y) in self.fountains or (x, y) in self.barrels
+                or self.haz_kind(x, y) in ("lava", "acid"))
 
     def bfs(self, sx, sy, limit):
         dm = {(sx, sy): 0}
@@ -1338,18 +2350,86 @@ class Game:
         return None
 
     # ---- новый этаж
+    def build_tiles(self):
+        self.tiles = make_tileset(self.biome, self.tile_seed, self.tile_alt, self.crypt_var)
+        ca, sa = math.cos(self.grad), math.sin(self.grad)
+        cs = [0, COLS * ca, ROWS * sa, COLS * ca + ROWS * sa]
+        p0, p1 = min(cs), max(cs)
+        self.vmap = [[min(NV - 1, int(((x * ca + y * sa) - p0) / (p1 - p0) * NV * 0.999))
+                      for x in range(COLS)] for y in range(ROWS)]
+
+    def haz_kind(self, x, y):
+        h = self.haz.get((x, y))
+        return h[0] if h else None
+
+    def pick_door(self, room):
+        """Дверь вниз — внутри комнаты, подальше от входов-проходов (чтобы не стояла на пути)."""
+        tiles = self.room_tiles(room)
+        cand = [t for t in tiles if all(self.grid[t[1] + dy][t[0] + dx] == 0
+                                        for dx in (-1, 0, 1) for dy in (-1, 0, 1))]
+        mouths = [(x, y) for y in range(room.top - 1, room.bottom + 1) for x in range(room.left - 1, room.right + 1)
+                  if 0 <= x < COLS and 0 <= y < ROWS and not room.collidepoint(x, y) and self.grid[y][x] == 0]
+        if cand:
+            def score(t):
+                return min([max(abs(t[0] - m[0]), abs(t[1] - m[1])) for m in mouths] or [9])
+            best = max(score(t) for t in cand)
+            return random.choice([t for t in cand if score(t) == best])
+        return random.choice([t for t in tiles if self.interior(*t)] or tiles)
+
+    def place_hazards(self, rooms, taken):
+        kind = BIOMES[self.biome]["haz"]
+        if not kind:
+            return
+        total = sum(len(self.room_tiles(r)) for r in rooms)
+        want = int(total * HAZ_FRAC[kind])
+        near = set()
+        for cx, cy in ((self.px, self.py), self.exit_pos):
+            near |= {(cx + dx, cy + dy) for dx in range(-2, 3) for dy in range(-2, 3)}
+
+        def roomy(x, y):       # только «широкие» места комнат: туннели и проходы не затрагиваем
+            return (0 < x < COLS - 1 and 0 < y < ROWS - 1 and
+                    all(self.grid[y + dy][x + dx] == 0 for dx in (-1, 0, 1) for dy in (-1, 0, 1)))
+
+        cand = [t for r in rooms for t in self.room_tiles(r) if roomy(*t) and t not in taken and t not in near]
+        random.shuffle(cand)
+        placed = 0
+        for (x, y) in cand:
+            if placed >= want:
+                break
+            if (x, y) in self.haz or (x, y) in taken:
+                continue
+            blob = [(x, y)]
+            for _ in range(random.randint(0, 3)):
+                bx, by = random.choice(blob)
+                dx, dy = random.choice(((1, 0), (-1, 0), (0, 1), (0, -1)))
+                n = (bx + dx, by + dy)
+                if (n not in blob and roomy(*n) and n not in taken and n not in near and n not in self.haz):
+                    blob.append(n)
+            for t in blob:
+                self.haz[t] = [kind, None]
+                placed += 1
+
     def new_floor(self):
         d = self.depth
+        biome = self.biome
         self.grid, rooms, self.deco, self.torches = generate_level()
         self.explored = [[False] * COLS for _ in range(ROWS)]
         self.visible = [[False] * COLS for _ in range(ROWS)]
         self.mobs, self.npcs, self.chests, self.barrels = [], {}, set(), set()
         self.fountains, self.traps = {}, {}
+        self.haz, self.tele = {}, []
         self.axe_pending = None
+        self.cut = None
+        self.reveal = None
         for lst in (self.parts, self.floaters, self.rings, self.slashes, self.projs, self.swings):
             lst.clear()
         self.mini = pygame.Surface((COLS * 2, ROWS * 2), pygame.SRCALPHA)
         self.mini_dirty = True
+        self.tile_seed = random.randrange(10 ** 6)       # у каждого этажа свой оттенок и градиент цвета
+        self.tile_alt = random.randrange(3)
+        self.crypt_var = random.randrange(3)
+        self.grad = random.uniform(0, math.tau)
+        self.build_tiles()
 
         start = random.choice(rooms)
         self.px, self.py = start.center
@@ -1358,10 +2438,10 @@ class Game:
         others = [r for r in rooms if r is not start]
         exit_room = max(others, key=lambda r: dm.get(r.center, 0))
         taken = {(self.px, self.py)}
-        tiles = self.room_tiles(exit_room)
-        self.exit_pos = random.choice([t for t in tiles if self.interior(*t)] or tiles)
+        self.exit_pos = self.pick_door(exit_room)
         taken.add(self.exit_pos)
-        self.boss_alive = (d % 5 == 0)
+        self.boss_alive = (d % 10 == 0 or d % 10 == 5)
+        boss_kind = ("boss_" + biome) if d % 10 == 0 else "king"
 
         special = [r for r in others if r is not exit_room] or others
         if d == 1:
@@ -1387,29 +2467,39 @@ class Game:
             else:
                 self.fountains[pos] = False
 
-        pool = mob_pool(d)
+        pool = mob_pool(d, biome)
         kinds, weights = [k for k, _ in pool], [w for _, w in pool]
+        trap_n, trap_p = {"castle": (3, 0.65), "crypt": (2, 0.55), "quarry": (2, 0.55)}.get(biome, (0, 0))
+        barrel_choices = [1, 2, 3, 4] if biome == "quarry" else [0, 0, 1, 2, 3]
+        chest_bonus = 0.3 if biome in ("crystal", "diamond") else 0.15
         for r in rooms:
             if random.random() < 0.55:
                 t = self.take_tile(r, taken)
                 if t:
                     self.chests.add(t)
-            if random.random() < 0.15:
+            if random.random() < chest_bonus:
                 t = self.take_tile(r, taken)
                 if t:
                     self.chests.add(t)
-            for _ in range(random.choice([0, 0, 1, 2, 3])):
+            for _ in range(random.choice(barrel_choices)):
                 t = self.take_tile(r, taken)
                 if t:
                     self.barrels.add(t)
             if r is start:
                 continue
-            for _ in range(random.choice([1, 2])):
-                if random.random() < 0.5:
-                    t = self.take_tile(r, taken)
-                    if t:
-                        self.traps[t] = "hidden"
-                    break
+            if trap_n:                                    # замок, склепы и камнеломня — больше ловушек
+                for _ in range(trap_n):
+                    if random.random() < trap_p:
+                        t = self.take_tile(r, taken)
+                        if t:
+                            self.traps[t] = "hidden"
+            else:
+                for _ in range(random.choice([1, 2])):
+                    if random.random() < 0.5:
+                        t = self.take_tile(r, taken)
+                        if t:
+                            self.traps[t] = "hidden"
+                        break
             if self.boss_alive and r is exit_room:
                 continue
             n = int(random.random() < 0.85) + int(random.random() < min(0.7, 0.12 * d)) \
@@ -1417,26 +2507,45 @@ class Game:
             for _ in range(n):
                 t = self.take_tile(r, taken)
                 if t and abs(t[0] - self.px) + abs(t[1] - self.py) >= 7:
-                    self.mobs.append(Mob(random.choices(kinds, weights)[0], t[0], t[1], d))
+                    self.mobs.append(Mob(random.choices(kinds, weights)[0], t[0], t[1], d, biome))
         if self.boss_alive:
             t = self.take_tile(exit_room, taken)
             if t:
-                self.mobs.append(Mob("king", t[0], t[1], d))
+                self.mobs.append(Mob(boss_kind, t[0], t[1], d, biome))
             else:
                 self.boss_alive = False
+        self.place_hazards(rooms, taken)
         self.compute_fov()
         if self.boss_alive:
-            self.say("Дверь вниз запечатана магией. Победи Короля гоблинов!", RED)
+            self.say(f"Дверь вниз запечатана магией. Победи: {MOBS[boss_kind]['name']}!", RED)
+
+    def change_biome(self):
+        """Новая локация каждые 10 этажей: не такая же, как сейчас, и не такая же, как была перед ней."""
+        banned = set(self.biome_hist[-2:])
+        cands = [b for b in BIOME_ORDER if b not in banned]
+        self.biome = random.choice(cands)
+        self.biome_hist.append(self.biome)
+        self.new_biome = True
 
     def descend(self):
         self.depth += 1
         self.quest_event("descend")
         self.heal(self.max_hp // 10, quiet=True)
         self.sfx.play("stairs")
+        self.new_biome = False
+        while (self.depth - 1) // 10 > len(self.biome_hist) - 1:      # каждые 10 этажей — новая локация
+            self.change_biome()
         self.new_floor()
         self.snap_camera()
         self.fade, self.banner = 255, 170
-        self.say(f"Ты спустился на этаж {self.depth}. Враги становятся сильнее...", ORANGE)
+        if self.new_biome:
+            self.say(f"Новая локация: {BIOMES[self.biome]['name']}!", BIOMES[self.biome]["color"])
+            self.toast(f"Новая локация: {BIOMES[self.biome]['name']}", BIOMES[self.biome]["color"])
+        else:
+            self.say(f"Ты спустился на этаж {self.depth}. Враги становятся сильнее...", ORANGE)
+        self.start_cutscene(intro=False)
+        self.autosave()
+
 
     # ---- обзор
     def compute_fov(self):
@@ -1488,15 +2597,103 @@ class Game:
         self.projs.append([a[0], a[1], b[0], b[1], 0, 10, kind])
         self.sfx.play("shoot")
 
+    def cam_for(self, x, y):
+        return (max(0, min(COLS * TILE - MAP_W, x * TILE + TILE / 2 - MAP_W / 2)),
+                max(0, min(ROWS * TILE - MAP_H, y * TILE + TILE / 2 - MAP_H / 2)))
+
     def snap_camera(self):
         self.prx, self.pry = float(self.px), float(self.py)
-        self.camx = max(0, min(COLS * TILE - MAP_W, self.prx * TILE + TILE / 2 - MAP_W / 2))
-        self.camy = max(0, min(ROWS * TILE - MAP_H, self.pry * TILE + TILE / 2 - MAP_H / 2))
+        self.camx, self.camy = self.cam_for(self.prx, self.pry)
+        self.focus = (self.prx, self.pry)
+
+    # ---- катсцены: заход в локацию и появление босса
+    def revealed(self, x, y):
+        r = self.reveal
+        return bool(r) and abs(x - r[0]) <= r[2] and abs(y - r[1]) <= r[2]
+
+    def set_reveal(self, boss):
+        self.reveal = (boss.x, boss.y, 4)
+        for yy in range(max(0, boss.y - 4), min(ROWS, boss.y + 5)):
+            for xx in range(max(0, boss.x - 4), min(COLS, boss.x + 5)):
+                self.explored[yy][xx] = True
+        self.mini_dirty = True
+
+    def start_cutscene(self, intro=False):
+        steps = []
+        if intro:
+            best = None
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                n = 0
+                while n < 4:
+                    x, y = self.px - dx * (n + 1), self.py - dy * (n + 1)
+                    if not (0 < x < COLS - 1 and 0 < y < ROWS - 1) or self.grid[y][x] == 1:
+                        break
+                    n += 1
+                if best is None or n > best[0]:
+                    best = (n, dx, dy)
+            n, dx, dy = best
+            if n > 0:                                   # герой заходит в пещеру
+                self.walk_from = (self.px - dx * n, self.py - dy * n)
+                self.prx, self.pry = float(self.walk_from[0]), float(self.walk_from[1])
+                self.facing = dx or self.facing
+                steps.append(["walk", 34 * n + 30])
+        boss = next((m for m in self.mobs if is_boss(m)), None)
+        if boss:                                        # камера -> босс -> имя -> обратно
+            steps += [["pan", 52], ["hold", 200], ["pan_back", 52]]
+            self.set_reveal(boss)
+        if steps:
+            self.cut = {"steps": steps, "i": 0, "t": 0, "boss": boss}
+
+    def update_cut(self):
+        c = self.cut
+        step, dur = c["steps"][c["i"]]
+        c["t"] += 1
+        boss = c.get("boss")
+        p = clamp01(c["t"] / dur)
+        if step == "walk":
+            fx, fy = self.walk_from
+            self.prx = fx + (self.px - fx) * p
+            self.pry = fy + (self.py - fy) * p
+            tx, ty = self.cam_for(self.prx, self.pry)
+            self.camx += (tx - self.camx) * 0.2
+            self.camy += (ty - self.camy) * 0.2
+            self.focus = (self.prx, self.pry)
+        elif boss:
+            self.prx, self.pry = float(self.px), float(self.py)
+            c0, c1 = self.cam_for(self.px, self.py), self.cam_for(boss.x, boss.y)
+            k = ease(p) if step == "pan" else (1.0 if step == "hold" else 1 - ease(p))
+            self.camx = c0[0] + (c1[0] - c0[0]) * k
+            self.camy = c0[1] + (c1[1] - c0[1]) * k
+            self.focus = (self.px + (boss.x - self.px) * k, self.py + (boss.y - self.py) * k)
+            if step == "hold" and c["t"] == 1:
+                bx, by = tc(boss.x, boss.y)
+                self.sfx.play("boom")
+                self.shake = max(self.shake, 14)
+                self.ring(bx, by, MOBS[boss.kind]["col"], 200, 36)
+                self.burst(bx, by, MOBS[boss.kind]["col"], 40, 6, 36)
+        if c["t"] >= dur:
+            c["i"] += 1
+            c["t"] = 0
+            if c["i"] >= len(c["steps"]):
+                self.end_cut()
+
+    def end_cut(self):
+        self.cut = None
+        self.reveal = None
+        self.prx, self.pry = float(self.px), float(self.py)
+
+    def skip_cut(self):
+        self.end_cut()
+        self.camx, self.camy = self.cam_for(self.px, self.py)
+        self.focus = (self.prx, self.pry)
+        self.banner = min(self.banner, 60)
 
     def update(self):
         k = 0.35
-        self.prx += (self.px - self.prx) * k
-        self.pry += (self.py - self.pry) * k
+        walking_in = bool(self.cut) and self.cut["steps"][self.cut["i"]][0] == "walk"
+        if not walking_in:
+            self.prx += (self.px - self.prx) * k
+            self.pry += (self.py - self.pry) * k
         for m in self.mobs:
             m.rx += (m.x - m.rx) * k
             m.ry += (m.y - m.ry) * k
@@ -1512,10 +2709,14 @@ class Game:
                 self.plunge = None
         if self.pflash > 0:
             self.pflash -= 1
-        tx = max(0, min(COLS * TILE - MAP_W, self.prx * TILE + TILE / 2 - MAP_W / 2))
-        ty = max(0, min(ROWS * TILE - MAP_H, self.pry * TILE + TILE / 2 - MAP_H / 2))
-        self.camx += (tx - self.camx) * 0.18
-        self.camy += (ty - self.camy) * 0.18
+        if self.cut:
+            self.update_cut()
+        else:
+            tx, ty = self.cam_for(self.prx, self.pry)
+            self.camx += (tx - self.camx) * 0.18
+            self.camy += (ty - self.camy) * 0.18
+            self.focus = (self.prx, self.pry)
+        self.bars += ((1.0 if self.cut else 0.0) - self.bars) * 0.14
         if self.shake > 0:
             self.shake -= 1
         if self.flash_t > 0:
@@ -1565,11 +2766,12 @@ class Game:
         self.swings = [s for s in self.swings if s[3] > 0]
         for p in self.projs:
             p[4] += 1
-            if p[6] == "fire":
+            col = PROJ_COL.get(p[6], (255, 150, 40))
+            if p[6] != "arrow":
                 t = p[4] / p[5]
-                self.burst(p[0] + (p[2] - p[0]) * t, p[1] + (p[3] - p[1]) * t, (255, 150, 40), 1, 0.6, 12, 0, 3)
+                self.burst(p[0] + (p[2] - p[0]) * t, p[1] + (p[3] - p[1]) * t, col, 1, 0.6, 12, 0, 3)
             if p[4] >= p[5]:
-                self.burst(p[2], p[3], (255, 170, 60) if p[6] == "fire" else (230, 230, 210), 8, 2.5, 16)
+                self.burst(p[2], p[3], col if p[6] != "arrow" else (230, 230, 210), 8, 2.5, 16)
         self.projs = [p for p in self.projs if p[4] < p[5]]
 
     # ---- урон, лечение, опыт
@@ -1597,6 +2799,7 @@ class Game:
         self.over = "dead"
         self.cause = src
         self.axe_pending = None
+        delete_save()
         x, y = tc(self.px, self.py)
         self.burst(x, y, (200, 30, 40), 40, 5, 40)
         self.ring(x, y, RED, 160, 30)
@@ -1690,10 +2893,10 @@ class Game:
             q["text"] = f"Убей {n} монстров"
             per = 14
         elif kind == "killkind":
-            sub = random.choice([k for k, _ in mob_pool(d)])
+            sub = random.choice([k for k, _ in mob_pool(d, self.biome)])
             n = random.randint(2, 4) + d // 4
             q["sub"] = sub
-            q["text"] = f"Убей {n} {MOBS[sub]['plural']}"
+            q["text"] = f"Убей {n} {mob_plural(sub, self.biome)}"
             per = 24
         elif kind == "gold":
             n = (random.randint(60, 110) + 25 * d) // 10 * 10
@@ -1776,7 +2979,7 @@ class Game:
 
     # ---- действия игрока
     def try_move(self, dx, dy):
-        if self.over or self.ui:
+        if self.over or self.ui or self.cut:
             return
         if dx:
             self.facing = dx
@@ -1800,7 +3003,15 @@ class Game:
             self.burst(ox, oy + 16, (95, 85, 110), 2, 1.2, 12, 0.0, 2)      # пыль из-под ног
             if self.step_on():
                 return
+            if self.haz_kind(self.px, self.py) == "ice" and not self.over:   # скольжение по льду
+                sx, sy = self.px + dx, self.py + dy
+                if self.grid[sy][sx] == 0 and not self.blocked(sx, sy):
+                    self.px, self.py = sx, sy
+                    self.say("Ты скользишь по льду!", BLUE)
+                    if self.step_on():
+                        return
         self.end_turn()
+
 
     def wait(self):
         if not self.over and not self.ui:
@@ -1828,7 +3039,7 @@ class Game:
         self.plunge = [dx, dy, 10, 10, "sword"]
         x, y = tc(m.x, m.y)
         self.slash(x - dx * 8, y - dy * 8, dx, dy, (255, 240, 180) if crit else (255, 255, 255), crit)
-        self.say(("КРИТ! " if crit else "") + f"Ты нанёс {MOBS[m.kind]['name']} {dmg} урона.",
+        self.say(("КРИТ! " if crit else "") + f"Ты нанёс {m.name} {dmg} урона.",
                  GOLD if crit else TEXT)
         self.sfx.play("crit" if crit else "hit")
         self.shake = max(self.shake, 9 if crit else 3)
@@ -1876,12 +3087,20 @@ class Game:
             self.shake = max(self.shake, 4)
 
     def damage_mob(self, m, dmg, crit=False):
+        info = MOBS[m.kind]
+        arm = info.get("armor", 0)
+        if arm:
+            dmg = max(1, dmg - arm)                  # броня босса гасит часть урона
         m.hp -= dmg
         m.flash = 6
         m.awake = True
         x, y = tc(m.x, m.y)
         self.float_text(("КРИТ " if crit else "") + str(dmg), m.x, m.y, (255, 220, 120), crit)
-        self.burst(x, y, MOBS[m.kind]["col"], 18 if crit else 9, 4 if crit else 3)
+        self.burst(x, y, m.col, 18 if crit else 9, 4 if crit else 3)
+        if info.get("reflect") and not self.over:
+            back = max(1, int(dmg * info["reflect"]))
+            self.say(f"{m.name} отражает часть урона: -{back} HP!", PURPLE)
+            self.hurt_player(back, "отражённый урон", pierce=True)
         if m.hp <= 0:
             self.kill_mob(m)
 
@@ -1891,14 +3110,14 @@ class Game:
         info = MOBS[m.kind]
         d = self.depth
         x, y = tc(m.x, m.y)
-        self.burst(x, y, info["col"], 30, 5, 34)
-        self.ring(x, y, info["col"], 70, 16)
+        self.burst(x, y, m.col, 30, 5, 34)
+        self.ring(x, y, m.col, 70, 16)
         gold = int(random.randint(*info["gold"]) * (1 + 0.1 * (d - 1)))
         self.add_gold(gold)
         self.float_text(f"+{gold}", m.x, m.y - 1, GOLD)
         for _ in range(6):
             self.burst(x, y, GOLD, 1, 4, 30, 0.2, 3)
-        self.say(f"{info['name']} повержен! +{gold} золота.", GOLD)
+        self.say(f"{m.name} повержен! +{gold} золота.", GOLD)
         self.sfx.play("coin")
         self.kills += 1
         self.gain_xp(int(info["xp"] * (1 + 0.08 * (d - 1))))
@@ -1906,14 +3125,17 @@ class Game:
             self.give_item(self.drop_item())
         if m.kind == "ogre" and not self.has_axe and random.random() < AXE_DROP:
             self.get_axe()
-        if m.kind == "king":
+        if is_boss(m):
             self.boss_alive = False
+            self.tele = []
             self.ring(x, y, GOLD, 220, 40)
             self.shake = 20
             self.give_item("elixir")
             self.give_item(self.drop_item())
-            self.say("Король пал! Дверь вниз открыта!", GOLD)
-            self.toast("Король гоблинов повержен!", GOLD)
+            if info.get("boss"):
+                self.give_item(self.drop_item())
+            self.say(f"{m.name} пал! Дверь вниз открыта!", GOLD)
+            self.toast(f"{m.name} повержен!", GOLD)
             self.sfx.play("boom")
         self.quest_event("kill", 1, m.kind)
 
@@ -1962,7 +3184,7 @@ class Game:
         pos = (self.px, self.py)
         if pos in self.chests:
             self.chests.remove(pos)
-            found = int(random.randint(15, 35) * (1 + 0.12 * (self.depth - 1)))
+            found = int(random.randint(15, 35) * (1 + 0.12 * (self.depth - 1)) * (1.5 if self.biome in ("crystal", "diamond") else 1))
             self.add_gold(found)
             x, y = tc(*pos)
             self.burst(x, y, GOLD, 20, 4, 30)
@@ -1979,7 +3201,7 @@ class Game:
             self.hurt_player(dmg, "ловушка", pierce=True)
         elif pos == self.exit_pos:
             if self.boss_alive:
-                self.say("Дверь заперта магией Короля гоблинов!", RED)
+                self.say("Дверь заперта магией: " + next((m.name for m in self.mobs if is_boss(m)), "босса") + " ещё жив!", RED)
                 self.sfx.play("bump")
             else:
                 self.descend()
@@ -2034,6 +3256,24 @@ class Game:
         self.end_turn()
 
     # ---- ход врагов
+    def on_slow(self):
+        return self.haz_kind(self.px, self.py) == "water" or "frost" in self.st
+
+    def hazard_tick(self):
+        hk = self.haz_kind(self.px, self.py)
+        if hk == "lava":
+            dmg = 3 + self.depth // 6
+            self.say(f"Ты стоишь в лаве! -{dmg} HP.", ORANGE)
+            self.hurt_player(dmg, "лава", pierce=True)
+        elif hk == "acid":
+            dmg = 2 + self.depth // 8
+            self.say(f"Кислота разъедает ноги: -{dmg} HP.", GREEN)
+            self.hurt_player(dmg, "кислота", pierce=True)
+            if not self.over:
+                self.add_status("poison", 3)
+        elif hk == "water" and self.turn % 4 == 0:
+            self.say("Ты бредёшь по воде — движения замедлены.", BLUE)
+
     def end_turn(self):
         if self.over:
             return
@@ -2050,17 +3290,23 @@ class Game:
             if self.st[k] <= 0:
                 del self.st[k]
                 self.say(f"Эффект «{STATUS_NAME[k]}» закончился.", GRAY)
+        self.hazard_tick()
+        if self.over:
+            return
+        for pos in list(self.haz):                  # временные лужи (след босса, потоп) высыхают
+            h = self.haz[pos]
+            if h[1] is not None:
+                h[1] -= 1
+                if h[1] <= 0:
+                    del self.haz[pos]
         if self.axe_pending:                # задержка секиры: 1 -> 0, а на следующем ходу — удар
             if self.axe_pending[4] > 0:
                 self.axe_pending[4] -= 1
             else:
                 self.resolve_axe()
-        skip = False
-        if "haste" in self.st:
-            self.haste_flip = not self.haste_flip
-            skip = self.haste_flip
-        if not skip:
-            self.mobs_turn()
+        self.mobs_turn()
+        if not self.over and self.on_slow():
+            self.mobs_turn()                # вода и холод замедляют героя: враги успевают сходить ещё раз
 
     def mobs_turn(self):
         dm = self.bfs(self.px, self.py, 24)
@@ -2075,11 +3321,10 @@ class Game:
         self.float_text(STATUS_NAME[name] + "!", self.px, self.py - 1, STATUS_COL[name])
 
     def mob_attack(self, m, mult=1.0, effect=None):
-        info = MOBS[m.kind]
         dmg = int(random.randint(*m.dmg) * mult)
         m.lunge = [sign(self.px - m.x), sign(self.py - m.y), 10]
-        real = self.hurt_player(max(1, dmg), info["name"])
-        self.say(f"{info['name']} бьёт тебя: -{real} HP!", RED)
+        real = self.hurt_player(max(1, dmg), m.name)
+        self.say(f"{m.name} бьёт тебя: -{real} HP!", RED)
         if effect and not self.over:
             self.add_status(effect, 4)
         return real
@@ -2131,26 +3376,239 @@ class Game:
             if n >= 2:
                 break
             if not self.blocked(x, y):
-                g = Mob("goblin", x, y, self.depth)
+                g = Mob("goblin", x, y, self.depth, self.biome)
                 g.awake = True
                 self.mobs.append(g)
                 px, py = tc(x, y)
-                self.burst(px, py, (90, 170, 70), 14, 3)
+                self.burst(px, py, g.col, 14, 3)
                 n += 1
         self.ring(*tc(m.x, m.y), RED, 100, 20)
-        self.say("Король гоблинов призывает подданных!", RED)
+        self.say(f"{m.name} призывает подданных!", RED)
         self.sfx.play("boom")
+
+    # ---- боссы: у каждого свой набор способностей (kit в таблице BOSSES)
+    def line_cells(self, m, dx, dy, length, width=0):
+        cells = []
+        for i in range(1, length + 1):
+            cx, cy = m.x + dx * i, m.y + dy * i
+            if not (0 < cx < COLS - 1 and 0 < cy < ROWS - 1) or self.grid[cy][cx] == 1:
+                break
+            for w in range(-width, width + 1):
+                lx, ly = cx - dy * w, cy + dx * w
+                if 0 < lx < COLS - 1 and 0 < ly < ROWS - 1 and self.grid[ly][lx] == 0:
+                    cells.append((lx, ly))
+        return cells
+
+    def dir_to_player(self, m):
+        ddx, ddy = self.px - m.x, self.py - m.y
+        return (sign(ddx), 0) if abs(ddx) >= abs(ddy) else (0, sign(ddy))
+
+    def set_tele(self, m, kind, cells):
+        m.pend = {"kind": kind, "cells": cells}
+        self.tele = list(cells)
+        self.float_text("!", m.x, m.y, RED, True)
+
+    def boss_can(self, name, m, dist, sees):
+        if name == "slam":
+            return dist <= 2
+        if name in ("rock", "shard", "spit", "curse", "freeze"):
+            return sees and 2 <= dist <= 8
+        if name in ("rockfall", "flood"):
+            return sees and dist <= 8
+        if name == "summon":
+            return sees and len(self.mobs) < 8
+        if name == "blink":
+            return dist <= 2 or dist >= 7
+        if name in ("breath", "charge"):
+            dx, dy = self.dir_to_player(m)
+            cells = self.line_cells(m, dx, dy, 7, 0 if name == "charge" else 1)
+            if name == "charge":
+                return sees and dist >= 2 and (self.px, self.py) in cells
+            return sees and dist <= 6 and (self.px, self.py) in cells
+        return False
+
+    def boss_use(self, name, m):
+        px, py = self.px, self.py
+        if name == "slam":
+            cells = [(m.x + dx, m.y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                     if (dx or dy) and self.grid[m.y + dy][m.x + dx] == 0]
+            self.set_tele(m, "slam", cells)
+            self.say(f"{m.name} замахивается для удара по площади! Отойди!", ORANGE)
+        elif name == "rockfall":
+            cand = [(x, y) for x in range(px - 3, px + 4) for y in range(py - 3, py + 4)
+                    if 0 < x < COLS - 1 and 0 < y < ROWS - 1 and self.grid[y][x] == 0]
+            random.shuffle(cand)
+            cells = list(dict.fromkeys([(px, py)] + cand[:6]))
+            self.set_tele(m, "rockfall", cells)
+            self.say(f"{m.name} обрушивает потолок! Уходи с красных клеток!", ORANGE)
+        elif name in ("breath", "charge"):
+            dx, dy = self.dir_to_player(m)
+            cells = self.line_cells(m, dx, dy, 7, 0 if name == "charge" else 1)
+            self.set_tele(m, name, cells)
+            self.say(f"{m.name} готовится {'дохнуть огнём' if name == 'breath' else 'таранить'}! Сойди с линии!", ORANGE)
+        elif name in ("rock", "shard", "spit", "curse", "freeze"):
+            kind = {"rock": "rock", "shard": "shard", "spit": "spit", "curse": "curse", "freeze": "ice"}[name]
+            self.add_proj(m.x, m.y, px, py, kind)
+            real = self.hurt_player(int(random.randint(*m.dmg) * 0.8), m.name)
+            self.say(f"{m.name} метает {'камень' if name == 'rock' else 'заряд'}: -{real} HP!", RED)
+            if not self.over:
+                if name in ("spit", "curse"):
+                    self.add_status("poison", 3)
+                elif name == "freeze":
+                    self.add_status("frost", 4)
+        elif name == "summon":
+            n = 0
+            spots = [(m.x + dx, m.y + dy) for dx in (-2, -1, 0, 1, 2) for dy in (-2, -1, 0, 1, 2) if dx or dy]
+            random.shuffle(spots)
+            for x, y in spots:
+                if n >= 2:
+                    break
+                if 0 < x < COLS - 1 and 0 < y < ROWS - 1 and not self.blocked(x, y):
+                    g = Mob(random.choice(["goblin", "goblin", "archer", "bat"]), x, y, self.depth, self.biome)
+                    g.awake = True
+                    self.mobs.append(g)
+                    gx, gy = tc(x, y)
+                    self.burst(gx, gy, g.col, 14, 3)
+                    n += 1
+            self.ring(*tc(m.x, m.y), m.col, 110, 22)
+            self.say(f"{m.name} призывает слуг!", RED)
+            self.sfx.play("boom")
+        elif name == "flood":
+            for dx in range(-2, 3):
+                for dy in range(-2, 3):
+                    x, y = px + dx, py + dy
+                    if (0 < x < COLS - 1 and 0 < y < ROWS - 1 and self.grid[y][x] == 0
+                            and (x, y) != self.exit_pos and (x, y) not in self.haz):
+                        self.haz[(x, y)] = ["water", 22]
+            self.ring(*tc(px, py), BLUE, 130, 24)
+            self.say(f"{m.name} затопляет пол вокруг тебя — вода замедляет!", BLUE)
+            self.sfx.play("potion")
+        elif name == "blink":
+            cand = [(x, y) for x in range(px - 5, px + 6) for y in range(py - 5, py + 6)
+                    if 0 < x < COLS - 1 and 0 < y < ROWS - 1 and self.grid[y][x] == 0 and not self.blocked(x, y)
+                    and (x, y) != self.exit_pos and 2 <= max(abs(x - px), abs(y - py)) <= 4]
+            if cand:
+                self.burst(*tc(m.x, m.y), m.col, 20, 4, 24)
+                m.x, m.y = random.choice(cand)
+                m.rx, m.ry = float(m.x), float(m.y)
+                self.burst(*tc(m.x, m.y), m.col, 20, 4, 24)
+                self.ring(*tc(m.x, m.y), m.col, 90, 18)
+                self.say(f"{m.name} телепортируется!", PURPLE)
+
+    def boss_resolve(self, m):
+        p = m.pend
+        m.pend = None
+        self.tele = []
+        kind, cells = p["kind"], p["cells"]
+        px, py = self.px, self.py
+        if kind == "charge":
+            last, hit = (m.x, m.y), False
+            for (x, y) in cells:
+                if (x, y) == (px, py):
+                    hit = True
+                    break
+                if (self.grid[y][x] == 1 or self.mob_at(x, y) or (x, y) in self.npcs
+                        or (x, y) in self.barrels or (x, y) in self.fountains):
+                    break
+                last = (x, y)
+            m.x, m.y = last
+            self.sfx.play("boom")
+            self.shake = max(self.shake, 12)
+            if hit:
+                real = self.hurt_player(int(random.randint(*m.dmg) * 1.5), m.name)
+                self.say(f"{m.name} врезается в тебя: -{real} HP!", RED)
+            else:
+                self.say(f"{m.name} промахнулся и пролетел мимо.", GRAY)
+            return
+        col = {"slam": (230, 190, 120), "rockfall": (160, 150, 130), "breath": (255, 140, 40)}.get(kind, (255, 200, 100))
+        for (x, y) in cells:
+            self.burst(*tc(x, y), col, 6, 3, 18)
+        self.ring(*tc(m.x, m.y), col, 130, 20)
+        self.shake = max(self.shake, 14)
+        self.sfx.play("boom")
+        if (px, py) in cells:
+            mult = {"slam": 1.4, "rockfall": 1.2, "breath": 1.1}.get(kind, 1.2)
+            real = self.hurt_player(int(random.randint(*m.dmg) * mult), m.name)
+            self.say(f"{m.name} попадает по тебе: -{real} HP!", RED)
+            if kind == "breath" and not self.over:
+                self.add_status("burn", 3)
+        else:
+            self.say("Ты увернулся от удара!", GREEN)
+
+    def leave_trail(self, x, y, kind):
+        cur = self.haz.get((x, y))
+        if (x, y) == self.exit_pos or (cur and cur[1] is None):
+            return
+        self.haz[(x, y)] = [kind, 16]
+
+    def boss_split(self, m):
+        n = 0
+        spots = [(m.x + dx, m.y + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
+        random.shuffle(spots)
+        for x, y in spots:
+            if n >= 2:
+                break
+            if not self.blocked(x, y):
+                s = Mob("slime", x, y, self.depth, self.biome)
+                s.awake = True
+                self.mobs.append(s)
+                self.burst(*tc(x, y), s.col, 14, 3)
+                n += 1
+        self.ring(*tc(m.x, m.y), m.col, 110, 22)
+        self.say(f"{m.name} разделяется на слизней!", GREEN)
+        self.sfx.play("boom")
+
+    def boss_act(self, m, dm, sees, dist):
+        info = MOBS[m.kind]
+        if m.pend:                                   # удар, о котором предупреждали, срабатывает сейчас
+            self.boss_resolve(m)
+            return
+        if info.get("regen") and m.hp < m.max:
+            m.hp = min(m.max, m.hp + max(1, int(m.max * info["regen"])))
+        if info.get("split"):
+            while m.split_stage < 2 and m.hp / m.max < (0.66, 0.33)[m.split_stage]:
+                m.split_stage += 1
+                self.boss_split(m)
+        for k in m.cds:
+            if m.cds[k] > 0:
+                m.cds[k] -= 1
+        for name, cd in info["kit"]:
+            if m.cds.get(name, 0) <= 0 and self.boss_can(name, m, dist, sees) and random.random() < 0.75:
+                self.boss_use(name, m)
+                m.cds[name] = cd
+                return
+        if dist == 1:
+            real = self.mob_attack(m)
+            if info.get("drain") and real:
+                m.hp = min(m.max, m.hp + real // 2)
+                self.float_text(f"+{real // 2}", m.x, m.y, PURPLE)
+        else:
+            ox, oy = m.x, m.y
+            if self.step_toward(m, dm) and info.get("trail"):
+                self.leave_trail(ox, oy, info["trail"])
 
     def mob_act(self, m, dm):
         info = MOBS[m.kind]
+        if self.haz_kind(m.x, m.y) == "water" and self.turn % 2 == 0:
+            return                                   # вода замедляет и врагов
         dist = abs(m.x - self.px) + abs(m.y - self.py)
+        inv = "invis" in self.st
         sees = dist <= info["sight"] and self.los(m.x, m.y, self.px, self.py)
+        if inv and dist > 1:
+            sees = False                             # невидимого героя замечают только вплотную
         if not m.awake:
             if sees:
                 m.awake = True
                 self.float_text("!", m.x, m.y, RED, True)
             return
+        if inv and dist > 1:
+            if random.random() < 0.5:
+                self.random_step(m)
+            return
         k = m.kind
+        if info.get("boss"):
+            self.boss_act(m, dm, sees, dist)
+            return
         if k == "king":
             m.summon_cd -= 1
             if m.summon_cd <= 0 and sees and len(self.mobs) < 9:
@@ -2191,8 +3649,8 @@ class Game:
             if sees and 2 <= dist <= 7:
                 self.add_proj(m.x, m.y, self.px, self.py, "arrow" if k == "archer" else "fire")
                 dmg = random.randint(*m.dmg)
-                real = self.hurt_player(dmg, info["name"])
-                self.say(f"{info['name']} стреляет: -{real} HP!", RED)
+                real = self.hurt_player(dmg, m.name)
+                self.say(f"{m.name} стреляет: -{real} HP!", RED)
                 if k == "mage" and not self.over:
                     self.add_status("burn", 3)
                 m.cd = 1 if k == "archer" else 2
@@ -2205,7 +3663,7 @@ class Game:
                 if not m.charge:
                     m.charge = True
                     self.float_text("!", m.x, m.y, RED, True)
-                    self.say("Огр заносит дубину! Отойди!", ORANGE)
+                    self.say(f"{m.name} заносит дубину! Отойди!", ORANGE)
                 else:
                     m.charge = False
                     self.mob_attack(m, 1.0)
@@ -2219,6 +3677,102 @@ class Game:
                     m.cd -= 1
                 elif self.step_toward(m, dm):
                     m.cd = 1
+
+    # ---- сохранение и загрузка забега
+    def dump(self):
+        npc_list = list(self.npcs.values())
+
+        def qd(q):
+            d = {k: v for k, v in q.items() if k != "npc"}
+            n = q.get("npc")
+            d["npc_idx"] = npc_list.index(n) if n in npc_list else None
+            return d
+
+        npcs = []
+        for n in npc_list:
+            ref = next((i for i, q in enumerate(self.quests) if q is n.quest), None)
+            npcs.append(dict(x=n.x, y=n.y, kind=n.kind, name=n.name, state=n.state, qref=ref,
+                             quest=qd(n.quest) if (n.quest and ref is None) else None))
+        mobs = [dict(kind=m.kind, x=m.x, y=m.y, hp=m.hp, max=m.max, dmg=list(m.dmg), awake=m.awake, cd=m.cd,
+                     charge=m.charge, summon_cd=m.summon_cd, biome=m.biome, name=m.name, col=list(m.col),
+                     cds=m.cds, split_stage=m.split_stage) for m in self.mobs]
+        return dict(
+            version=2, name=self.name, lvl=self.lvl, xp=self.xp, up=self.up, hp=self.hp, gold=self.gold,
+            total_gold=self.total_gold, kills=self.kills, turn=self.turn, done_quests=self.done_quests,
+            depth=self.depth, biome=self.biome, biome_hist=self.biome_hist, inv=self.inv, weapon=self.weapon,
+            has_axe=self.has_axe, st=self.st, facing=self.facing, quests=[qd(q) for q in self.quests],
+            floor=dict(grid=self.grid, deco=self.deco, explored=self.explored, torches=[list(t) for t in self.torches],
+                       px=self.px, py=self.py, exit_pos=list(self.exit_pos), boss_alive=self.boss_alive,
+                       chests=[list(c) for c in self.chests], barrels=[list(b) for b in self.barrels],
+                       fountains=[[x, y, u] for (x, y), u in self.fountains.items()],
+                       traps=[[x, y, s] for (x, y), s in self.traps.items()],
+                       haz=[[x, y, h[0], h[1]] for (x, y), h in self.haz.items()],
+                       npcs=npcs, mobs=mobs, tile_seed=self.tile_seed, tile_alt=self.tile_alt,
+                       crypt_var=self.crypt_var, grad=self.grad))
+
+    def load_data(self, d):
+        for k in ("name", "lvl", "xp", "up", "hp", "gold", "total_gold", "kills", "turn", "done_quests", "depth",
+                  "biome", "biome_hist", "inv", "weapon", "has_axe", "st", "facing"):
+            setattr(self, k, d[k])
+        for k in ORDER:
+            self.inv.setdefault(k, 0)
+        for k in ("weapon", "armor", "vit", "lamp", "crit", "axe"):
+            self.up.setdefault(k, 0)
+        f = d["floor"]
+        self.grid, self.deco, self.explored = f["grid"], f["deco"], f["explored"]
+        self.visible = [[False] * COLS for _ in range(ROWS)]
+        self.torches = {tuple(t) for t in f["torches"]}
+        self.px, self.py = f["px"], f["py"]
+        self.exit_pos = tuple(f["exit_pos"])
+        self.boss_alive = f["boss_alive"]
+        self.chests = {tuple(c) for c in f["chests"]}
+        self.barrels = {tuple(b) for b in f["barrels"]}
+        self.fountains = {(x, y): u for x, y, u in f["fountains"]}
+        self.traps = {(x, y): s for x, y, s in f["traps"]}
+        self.haz = {(x, y): [k, t] for x, y, k, t in f["haz"]}
+        self.tile_seed, self.tile_alt, self.crypt_var, self.grad = f["tile_seed"], f["tile_alt"], f["crypt_var"], f["grad"]
+        self.build_tiles()
+        self.mini = pygame.Surface((COLS * 2, ROWS * 2), pygame.SRCALPHA)
+        self.mini_dirty = True
+        self.mobs = []
+        for md in f["mobs"]:
+            m = Mob(md["kind"], md["x"], md["y"], self.depth, md["biome"])
+            m.hp, m.max, m.dmg = md["hp"], md["max"], tuple(md["dmg"])
+            m.awake, m.cd, m.charge, m.summon_cd = md["awake"], md["cd"], md["charge"], md["summon_cd"]
+            m.name, m.col, m.cds, m.split_stage = md["name"], tuple(md["col"]), md["cds"], md["split_stage"]
+            self.mobs.append(m)
+        self.quests = []
+        for qd_ in d["quests"]:
+            q = dict(qd_)
+            q["npc"] = None
+            self.quests.append(q)
+        self.npcs = {}
+        for i, nd in enumerate(f["npcs"]):
+            n = NPC(nd["kind"], nd["x"], nd["y"], nd["name"])
+            n.state = nd["state"]
+            if nd["qref"] is not None and nd["qref"] < len(self.quests):
+                n.quest = self.quests[nd["qref"]]
+            elif nd["quest"]:
+                n.quest = dict(nd["quest"])
+                n.quest["npc"] = n
+            self.npcs[(n.x, n.y)] = n
+        npc_list = list(self.npcs.values())
+        for q, qd_ in zip(self.quests, d["quests"]):
+            idx = qd_.get("npc_idx")
+            if idx is not None and idx < len(npc_list):
+                q["npc"] = npc_list[idx]
+        self.hp_lag = float(self.hp)
+        self.xp_disp = float(self.xp)
+        self.gold_disp = float(self.gold)
+        self.snap_camera()
+        self.compute_fov()
+        self.fade, self.banner = 255, 120
+        self.say(f"С возвращением, {self.name}! Игра продолжена: этаж {self.depth}.", GOLD)
+        self.say(f"Локация: {BIOMES[self.biome]['name']}.", BIOMES[self.biome]["color"])
+
+    def autosave(self):
+        if not self.over:
+            save_game_to_disk(self)
 
 
 # ============================================================ отрисовка мира
@@ -2238,31 +3792,40 @@ def player_anim(g, t):
 
 def draw_world(screen, g, A, F):
     t = pygame.time.get_ticks()
+    B = BIOMES[g.biome]
+    TS = g.tiles
+    torches = A.torch_set(g.biome)
     cx, cy = int(g.camx), int(g.camy)
     w = A.view
     w.fill((8, 6, 12))
     tx0, ty0 = cx // TILE, cy // TILE
     glows = []
     for ty in range(ty0, min(ROWS, ty0 + VIEW_ROWS + 2)):
-        row, exr, vis = g.grid[ty], g.explored[ty], g.visible[ty]
+        row, exr, vis, vrow = g.grid[ty], g.explored[ty], g.visible[ty], g.vmap[ty]
         for tx in range(tx0, min(COLS, tx0 + VIEW_COLS + 2)):
             if not exr[tx]:
                 continue
             sx, sy = tx * TILE - cx, ty * TILE - cy
+            v = vrow[tx]
             if row[tx] == 1:
-                w.blit(A.wall, (sx, sy))
+                w.blit(TS["wall"][v][(tx * 5 + ty * 3) % 2], (sx, sy))
                 if (tx, ty) in g.torches:
-                    w.blit(A.torch[(t // 110 + tx) % 2], (sx, sy))
+                    w.blit(torches[(t // 110 + tx) % 2], (sx, sy))
                     if vis[tx]:
                         glows.append((sx, sy))
             else:
                 dc = g.deco[ty][tx]
-                w.blit(A.moss if dc == 1 else A.bones if dc == 2 else A.floor[(tx * 7 + ty * 13) % 4], (sx, sy))
-            if not vis[tx]:
+                w.blit(TS["deco"][v][dc - 1] if dc else TS["floor"][v][(tx * 7 + ty * 13) % 4], (sx, sy))
+                hz = g.haz.get((tx, ty))
+                if hz:
+                    w.blit(A.haz[hz[0]][(t // 350 + tx + ty) % 2], (sx, sy))
+                    if hz[0] == "lava" and vis[tx]:
+                        glows.append((sx, sy))
+            if not vis[tx] and not g.revealed(tx, ty):
                 w.blit(A.dim, (sx, sy))
 
     def seen(x, y):
-        return g.visible[y][x]
+        return g.visible[y][x] or g.revealed(x, y)
 
     def S(rx, ry):
         return int(rx * TILE) - cx, int(ry * TILE) - cy
@@ -2274,6 +3837,11 @@ def draw_world(screen, g, A, F):
         for (x, y) in g.axe_cells(ox, oy, dx, dy):
             if 0 <= x < COLS and 0 <= y < ROWS and g.grid[y][x] == 0:
                 w.blit(A.tele, S(x, y))
+    # красные клетки — босс готовит удар
+    if g.tele:
+        A.tele_boss.set_alpha(int(150 + 105 * math.sin(t / 70)))
+        for (x, y) in g.tele:
+            w.blit(A.tele_boss, S(x, y))
 
     ex, ey = g.exit_pos
     if seen(ex, ey) or g.explored[ey][ex]:
@@ -2312,19 +3880,25 @@ def draw_world(screen, g, A, F):
             a = math.sin(math.pi * (1 - m.lunge[2] / 10)) * 14
             sx += int(m.lunge[0] * a)
             sy += int(m.lunge[1] * a)
-        img = A.mob_img(m.kind, t, m.flash > 0)
-        if m.kind == "slime":
+        info = MOBS[m.kind]
+        top = sy
+        if info.get("boss"):
+            img = A.boss_frames(m.kind[5:], m.flash > 0)[(t // 320) % 2]
+            top = sy - (img.get_height() - TILE) + 6 + bob
+            w.blit(img, (sx - (img.get_width() - TILE) // 2, top))
+        elif m.kind == "slime":
+            img = A.mob_img(m.kind, t, m.flash > 0, m.biome)
             sq = int((math.sin(t / 160 + m.seed) + 1) * 2.5)
             img = pygame.transform.scale(img, (TILE + sq, TILE - sq))
             w.blit(img, (sx - sq // 2, sy + sq))
         else:
-            w.blit(img, (sx, sy + bob))
+            w.blit(A.mob_img(m.kind, t, m.flash > 0, m.biome), (sx, sy + bob))
         if m.charge:
             pygame.draw.ellipse(w, (220, 60, 40), (sx + 2, sy + TILE - 12, TILE - 4, 12), 3)
-            draw_text(w, F["big"], "!", RED, sx + TILE // 2, sy - 32, "c")
+            draw_text(w, F["big"], "!", RED, sx + TILE // 2, top - 32, "c")
         elif not m.awake:
-            draw_text(w, F["small"], "z", GRAY, sx + TILE - 8, sy - 6 + bob)
-        if m.hp < m.max:
+            draw_text(w, F["small"], "z", GRAY, sx + TILE - 8, top - 6 + bob)
+        if m.hp < m.max and not info.get("boss"):
             bw = TILE - 12
             pygame.draw.rect(w, (60, 20, 20), (sx + 6, sy - 4, bw, 5))
             pygame.draw.rect(w, (220, 60, 60), (sx + 6, sy - 4, max(1, int(bw * m.hp / m.max)), 5))
@@ -2337,12 +3911,16 @@ def draw_world(screen, g, A, F):
             sx += int(g.plunge[0] * a)
             sy += int(g.plunge[1] * a)
         for key, col in (("rage", (230, 90, 30)), ("iron", (170, 180, 205)),
-                         ("haste", CYAN), ("vamp", PURPLE)):
+                         ("invis", (190, 225, 255)), ("vamp", PURPLE), ("frost", (150, 210, 255))):
             if key in g.st:
                 pulse = int(2 + math.sin(t / 120) * 2)
                 pygame.draw.ellipse(w, col, (sx + 4 - pulse, sy + TILE - 14, TILE - 8 + pulse * 2, 12), 2)
         anim, f, wp = player_anim(g, t)
-        img = A.pframe(anim, f, g.up["armor"], wp, g.pflash > 0, g.facing < 0)
+        wl = g.up["weapon"] if wp == "sword" else g.up["axe"]
+        img = A.pframe(anim, f, g.up["armor"], wp, g.pflash > 0, g.facing < 0, wl)
+        if "invis" in g.st:                                   # невидимость: герой полупрозрачный
+            img = img.copy()
+            img.set_alpha(105 + int(math.sin(t / 200) * 25))
         w.blit(img, (sx, sy))
 
     for p in g.projs:
@@ -2354,8 +3932,9 @@ def draw_world(screen, g, A, F):
             pygame.draw.line(w, (235, 225, 190), (x - math.cos(ang) * 14, y - math.sin(ang) * 14), (x, y), 3)
             pygame.draw.circle(w, (255, 255, 255), (int(x), int(y)), 3)
         else:
-            pygame.draw.circle(w, (255, 120, 30), (int(x), int(y)), 9)
-            pygame.draw.circle(w, (255, 230, 120), (int(x), int(y)), 5)
+            col = PROJ_COL.get(p[6], (255, 120, 30))
+            pygame.draw.circle(w, col, (int(x), int(y)), 9)
+            pygame.draw.circle(w, lerpc(col, (255, 255, 255), 0.65), (int(x), int(y)), 5)
 
     for s in g.slashes:
         x, y, dx, dy, life, col, crit = s
@@ -2386,16 +3965,22 @@ def draw_world(screen, g, A, F):
         col = tuple(int(c * fr) for c in r[4])
         pygame.draw.circle(w, col, (int(r[0]) - cx, int(r[1]) - cy), int(r[2]), max(1, int(5 * fr)))
 
-    # тьма + круг света факела
+    # тьма + круг света факела (в катсцене свет следует за камерой)
     ov = A.overlay
     ov.fill((0, 0, 0, 228))
-    light = A.light(g.light_radius())[(t // 120) % 3]
-    pcx, pcy = int(g.prx * TILE) - cx + TILE // 2, int(g.pry * TILE) - cy + TILE // 2
+    rad = g.light_radius() + (2 if (g.cut and g.cut.get("boss")) else 0)
+    light = A.light(rad)[(t // 120) % 3]
+    pcx, pcy = int(g.focus[0] * TILE) - cx + TILE // 2, int(g.focus[1] * TILE) - cy + TILE // 2
     ov.blit(light, (pcx - light.get_width() // 2, pcy - light.get_height() // 2),
             special_flags=pygame.BLEND_RGBA_MIN)
     w.blit(ov, (0, 0))
     for sx, sy in glows:
         w.blit(A.glow, (sx + TILE // 2 - 55, sy + TILE // 2 - 55), special_flags=pygame.BLEND_RGB_ADD)
+    tint = B["tint"]
+    if tint[3]:                                            # цветная дымка локации
+        A.flashsurf.fill(tint[:3])
+        A.flashsurf.set_alpha(tint[3])
+        w.blit(A.flashsurf, (0, 0))
 
     if g.hp < g.max_hp * 0.3 and not g.over:
         w.blit(A.vigs[int((math.sin(t / 150) + 1) / 2 * 5.99)], (0, 0))
@@ -2418,7 +4003,7 @@ def draw_world(screen, g, A, F):
     screen.fill((10, 8, 14))
     screen.blit(w, (ox, oy))
 
-    # миникарта
+    # миникарта и название локации
     screen.blit(g.mini, (10, 10))
     pygame.draw.rect(screen, PANEL_BORDER, (8, 8, COLS * 2 + 4, ROWS * 2 + 4), 2)
     if g.explored[ey][ex]:
@@ -2429,17 +4014,21 @@ def draw_world(screen, g, A, F):
                              (10 + x * 2 - 1, 10 + y * 2 - 1, 4, 4))
     if (t // 300) % 2 == 0:
         pygame.draw.rect(screen, (255, 255, 255), (10 + g.px * 2 - 1, 10 + g.py * 2 - 1, 4, 4))
+    label = B["name"]
+    if g.biome == "crypt":
+        label += " (" + ("костяной", "песчаный", "королевский")[g.crypt_var] + ")"
+    draw_text(screen, F["small"], label, B["color"], 10, 98)
 
     # статусы
     chips = [(f"{STATUS_NAME[k]} {v}", STATUS_COL[k]) for k, v in g.st.items()]
     if chips:
         total = sum(F["small"].size(c[0])[0] + 18 for c in chips)
         x = MAP_W // 2 - total // 2
-        for label, col in chips:
-            wd = F["small"].size(label)[0] + 12
+        for label_, col in chips:
+            wd = F["small"].size(label_)[0] + 12
             pygame.draw.rect(screen, (20, 17, 28), (x, 8, wd, 24))
             pygame.draw.rect(screen, col, (x, 8, wd, 24), 2)
-            draw_text(screen, F["small"], label, col, x + 6, 10, shadow=False)
+            draw_text(screen, F["small"], label_, col, x + 6, 10, shadow=False)
             x += wd + 6
 
     # квесты
@@ -2455,8 +4044,19 @@ def draw_world(screen, g, A, F):
             draw_text(screen, F["small"], f"{q['text']} ({min(q['p'], q['n'])}/{q['n']})",
                       TEXT, MAP_W - qw, 34 + 22 * i, shadow=False)
 
+    # полоса здоровья босса
+    boss = next((m for m in g.mobs if is_boss(m) and m.awake), None)
+    if boss and not g.over and not g.cut:
+        info = MOBS[boss.kind]
+        bw = 460
+        bx = MAP_W // 2 - bw // 2
+        draw_text(screen, F["small"], f"{boss.name} — {info.get('title', '')}", info["col"], MAP_W // 2, 38, "c")
+        pygame.draw.rect(screen, (30, 10, 14), (bx, 58, bw, 14))
+        pygame.draw.rect(screen, (210, 44, 56), (bx, 58, int(bw * max(0, boss.hp) / boss.max), 14))
+        pygame.draw.rect(screen, info["col"], (bx, 58, bw, 14), 2)
+
     # уведомления: вылетают слева, потом уезжают обратно
-    ty = 104
+    ty = 124
     for text, col, age, life in g.toasts:
         k_in = ease_back(age / 16)
         k_out = ease((age - (life - 22)) / 22) if age > life - 22 else 0.0
@@ -2471,18 +4071,28 @@ def draw_world(screen, g, A, F):
         screen.blit(ts, (8 + off, ty))
         ty += 34
 
+    draw_cut(screen, g, F)
+
     if g.fade > 0:
         A.blacksurf.set_alpha(g.fade)
         screen.blit(A.blacksurf, (0, 0), (0, 0, MAP_W, MAP_H))
-    if g.banner > 0:
+    if g.banner > 0 and not (g.cut and g.cut["steps"][g.cut["i"]][0] in ("hold",)):
         a = max(0, min(255, g.banner * 5, (170 - g.banner) * 10))
+        if g.new_biome:
+            lab = F["normal_b"].render("НОВАЯ ЛОКАЦИЯ", True, TEXT)
+            lab.set_alpha(a)
+            screen.blit(lab, (MAP_W // 2 - lab.get_width() // 2, MAP_H // 2 - 112))
         title = F["title"].render(f"ЭТАЖ {g.depth}", True, GOLD)
         title.set_alpha(a)
         screen.blit(title, (MAP_W // 2 - title.get_width() // 2, MAP_H // 2 - 70))
+        sub = F["big"].render(B["name"], True, B["color"])
+        sub.set_alpha(a)
+        screen.blit(sub, (MAP_W // 2 - sub.get_width() // 2, MAP_H // 2 + 6))
         if g.boss_alive:
-            sub = F["big"].render("БОСС: Король гоблинов", True, RED)
-            sub.set_alpha(a)
-            screen.blit(sub, (MAP_W // 2 - sub.get_width() // 2, MAP_H // 2 + 6))
+            bn = MOBS["boss_" + g.biome]["name"] if g.depth % 10 == 0 else MOBS["king"]["name"]
+            sub2 = F["big"].render(f"БОСС: {bn}", True, RED)
+            sub2.set_alpha(a)
+            screen.blit(sub2, (MAP_W // 2 - sub2.get_width() // 2, MAP_H // 2 + 44))
 
     if g.lvl_banner > 0:
         a = max(0, min(255, g.lvl_banner * 8, (130 - g.lvl_banner) * 16))
@@ -2504,6 +4114,40 @@ def draw_world(screen, g, A, F):
         k = ease(g.ui.t / 12)
         us.set_alpha(int(255 * k))
         screen.blit(us, (0, int((1 - k) * 50)))
+
+
+def draw_cut(screen, g, F):
+    """Кино-полосы и титры: заход в локацию и представление босса."""
+    k = ease(g.bars)
+    if k < 0.01:
+        return
+    h = int(64 * k)
+    pygame.draw.rect(screen, (0, 0, 0), (0, 0, MAP_W, h))
+    pygame.draw.rect(screen, (0, 0, 0), (0, MAP_H - h, MAP_W, h))
+    c = g.cut
+    if not c:
+        return
+    step, dur = c["steps"][c["i"]]
+    t = c["t"]
+    if step == "walk":
+        a = ease(t / 30) * clamp01((dur - t) / 24)
+        B = BIOMES[g.biome]
+        draw_text(screen, F["big"], B["name"], B["color"], MAP_W // 2, MAP_H - 112, "c", alpha=int(255 * a))
+    elif step == "hold" and c.get("boss"):
+        m = c["boss"]
+        info = MOBS[m.kind]
+        fo = clamp01((dur - t) / 24)
+        a1, a2 = ease(t / 28) * fo, ease((t - 22) / 28) * fo
+        y = MAP_H - 64 - 160
+        draw_text(screen, F["huge"], info["name"], info["col"], MAP_W // 2, y + int((1 - ease(t / 28)) * 36), "c",
+                  alpha=int(255 * a1))
+        lw = int(260 * ease((t - 22) / 28) * fo)
+        pygame.draw.line(screen, info["col"], (MAP_W // 2 - lw, y + 108), (MAP_W // 2 + lw, y + 108), 2)
+        draw_text(screen, F["big"], info.get("title", ""), TEXT, MAP_W // 2, y + 114 + int((1 - ease((t - 22) / 28)) * 20),
+                  "c", alpha=int(255 * a2))
+    if c["t"] > 6:
+        draw_text(screen, F["small"], "Enter — пропустить", GRAY, MAP_W - 16, MAP_H - 30, "r",
+                  alpha=int(160 * ease(c["t"] / 40)))
 
 
 def fit_text(font, text, maxw):
@@ -2547,7 +4191,7 @@ def draw_hud(screen, g, A, F):
         pop = int(math.sin(g.slot_t[key] / 14 * math.pi) * 5)      # «подпрыгивание» при изменении
         slot = pygame.Rect(x, y0 + 6, 50, 56).inflate(pop * 2, pop * 2)
         pygame.draw.rect(screen, (32, 27, 44), slot)
-        pygame.draw.rect(screen, ITEMS[key]["col"] if n else (70, 62, 90), slot, 2)
+        pygame.draw.rect(screen, ITEM_COL.get(key, ITEMS[key]["col"]) if n else (70, 62, 90), slot, 2)
         screen.blit((A.icons if n else A.icons_dim)[key], (x + 9, y0 + 12 - pop))
         draw_text(screen, F["small"], str(i + 1), GRAY, slot.x + 4, slot.y - 2, shadow=False)
         draw_text(screen, F["small"], f"x{n}", TEXT if n else GRAY, slot.centerx, y0 + 42, "c", shadow=False)
@@ -2561,15 +4205,17 @@ def draw_hud(screen, g, A, F):
                   290 - int((1 - k) * 70), y0 + 68 + i * 18,
                   shadow=False, alpha=int(255 * k))
 
-    # оружие
+    # оружие (вид и название меняются с заточкой)
     wx = 745
+    wl = g.up["weapon"] if g.weapon == "sword" else g.up["axe"]
     wname = "Секира" if g.weapon == "axe" else "Меч"
-    screen.blit(A.wicon[g.weapon], (wx, y0 + 6))
-    draw_text(screen, F["normal_b"], wname, ORANGE if g.weapon == "axe" else TEXT, wx + 38, y0 + 6)
-    if g.has_axe:
-        draw_text(screen, F["small"], "Q — сменить", GRAY, wx + 38, y0 + 28, shadow=False)
+    screen.blit(A.weapon_icon(g.weapon, wl), (wx, y0 + 6))
+    draw_text(screen, F["normal_b"], wname + (" [Q]" if g.has_axe else ""),
+              ORANGE if g.weapon == "axe" else TEXT, wx + 38, y0 + 4)
+    stage = SWORD_STAGES[g.up["weapon"]] if g.weapon == "sword" else f"Секира, ур. {g.up['axe']}"
+    draw_text(screen, F["small"], fit_text(F["small"], stage, 170), (255, 225, 140), wx + 38, y0 + 28, shadow=False)
     if g.axe_pending and (t // 200) % 2 == 0:
-        draw_text(screen, F["small"], "ЗАМАХ!", ORANGE, wx + 130, y0 + 12, shadow=False)
+        draw_text(screen, F["small"], "ЗАМАХ!", ORANGE, wx + 150, y0 + 8, shadow=False)
     lo, hi = g.atk_range()
     stats = [f"Атака {lo}–{hi}", f"Броня {g.armor_val()}", f"Крит {int(g.crit_chance() * 100)}%",
              f"Свет {g.light_radius()}", f"Убито {g.kills}"]
@@ -2668,12 +4314,16 @@ def draw_torches(screen, A, t):
         screen.blit(A.big["torch"][(t // 120 + side) % 2], (x, 290))
 
 
-def menu_items(sfx):
-    return ["Новая игра", "Как играть", "Рекорды", "Создатели",
-            "Звук: " + ("вкл" if sfx.on else "выкл"), "Выход"]
+def menu_items(sfx, save=None):
+    items = []
+    if save:
+        items.append(("continue", f"Продолжить • этаж {save['depth']}"))
+    items += [("new", "Новая игра"), ("help", "Как играть"), ("records", "Рекорды"), ("credits", "Создатели"),
+              ("sound", "Звук: " + ("вкл" if sfx.on else "выкл")), ("exit", "Выход")]
+    return items
 
 
-def draw_menu(screen, A, F, bg, fx, sel, sfx, rec, age, hov):
+def draw_menu(screen, A, F, bg, fx, sel, sfx, rec, age, hov, items):
     t = pygame.time.get_ticks()
     screen.blit(bg, (0, 0))
     draw_torches(screen, A, t)
@@ -2684,12 +4334,12 @@ def draw_menu(screen, A, F, bg, fx, sel, sfx, rec, age, hov):
     draw_text(screen, F["normal"], "бесконечное подземелье • золото • слава", GRAY, WIN_W // 2, 212, "c",
               alpha=int(255 * ease((age - 300) / 500)))
     rects = []
-    for i, label in enumerate(menu_items(sfx)):
-        base = pygame.Rect(WIN_W // 2 - 170, 262 + i * 54, 340, 44)
+    for i, (mid, label) in enumerate(items):
+        base = pygame.Rect(WIN_W // 2 - 190, 258 + i * 48, 380, 40)
         rects.append(base)
         on = i == sel
         hov[i] += ((1.0 if on else 0.0) - hov[i]) * 0.25          # плавное наведение
-        k = ease((age - 350 - i * 90) / 450)                       # кнопки влетают по очереди
+        k = ease((age - 350 - i * 80) / 450)                       # кнопки влетают по очереди
         xoff = (-1 if i % 2 == 0 else 1) * int((1 - k) * 560)
         r = base.move(xoff, 0).inflate(int(hov[i] * 18), int(hov[i] * 4))
         mix = hov[i]
@@ -2698,7 +4348,7 @@ def draw_menu(screen, A, F, bg, fx, sel, sfx, rec, age, hov):
         pygame.draw.rect(screen, fill, r)
         pygame.draw.rect(screen, border, r, 3 if on else 2)
         txt = tuple(int(a + (b - a) * mix) for a, b in ((225, 240), (220, 200), (235, 70)))
-        draw_text(screen, F["big"], label, txt, r.centerx, r.y + 4, "c")
+        draw_text(screen, F["big"], label, txt, r.centerx, r.y + 3, "c")
         if on and k >= 1:
             o = int(math.sin(t / 150) * 4)
             pygame.draw.polygon(screen, GOLD, [(r.x - 26 + o, r.centery - 10), (r.x - 26 + o, r.centery + 10), (r.x - 8 + o, r.centery)])
@@ -2745,25 +4395,25 @@ def draw_help(screen, A, F, bg):
     draw_text(screen, F["title"], "Как играть", GOLD, WIN_W // 2, 14, "c")
     lines = [
         ("Управление", GOLD),
-        ("WASD / стрелки — ходьба", TEXT),
-        ("Идти в врага — удар", TEXT),
-        ("Идти в NPC, бочку, фонтан — действие", TEXT),
-        ("Пробел — пропустить ход", TEXT),
+        ("WASD / стрелки — ходьба, идти во врага — удар", TEXT),
+        ("Пробел — пропустить ход,  Esc — пауза", TEXT),
         ("Q — сменить оружие (меч / секира)", TEXT),
-        ("H — зелье лечения,  1–8 — предметы", TEXT),
-        ("M — звук,  Esc — пауза,  F11 — экран", TEXT),
+        ("H — лечение,  1–8 — предметы и свитки", TEXT),
+        ("M — звук,  F11 — полный экран", TEXT),
+        ("", TEXT),
+        ("Локации", GOLD),
+        ("Каждые 10 этажей — новая локация со своими", TEXT),
+        ("врагами и боссом на 10-м этаже. Лава жжёт,", TEXT),
+        ("вода замедляет, на льду герой скользит.", TEXT),
         ("", TEXT),
         ("Секира", GOLD),
         ("Редко выпадает из огра. Бьёт дугой по 3", TEXT),
         ("клеткам, но с задержкой в один ход.", TEXT),
-        ("После находки в лавке есть её заточка.", TEXT),
         ("", TEXT),
         ("Советы", GOLD),
-        ("Дверь на этаже ведёт вниз. На каждом", TEXT),
-        ("5-м этаже дверь заперта, пока жив босс.", TEXT),
-        ("Торговец ($) продаёт зелья и улучшения,", TEXT),
-        ("кольчуга меняет внешний вид героя.", TEXT),
-        ("Старцы (!) дают квесты с наградами.", TEXT),
+        ("Босс держит дверь вниз запертой. Красные", TEXT),
+        ("клетки на полу — туда скоро ударят.", TEXT),
+        ("Игра сохраняется при выходе: «Продолжить».", TEXT),
     ]
     y = 84
     for s, c in lines:
@@ -2771,7 +4421,7 @@ def draw_help(screen, A, F, bg):
         y += 28
     draw_text(screen, F["big"], "Бестиарий", GOLD, 600, 84)
     y = 124
-    for k, d in MOBS.items():
+    for k, d in [(k, d) for k, d in MOBS.items() if not d.get("boss")]:
         screen.blit(pygame.transform.scale(A.mob[k][0], (44, 44)), (520, y))
         draw_text(screen, F["normal_b"], d["name"], d["col"], 574, y - 2)
         for j, ln in enumerate(wrap(d["desc"], F["small"], 360)):
@@ -2812,6 +4462,291 @@ def draw_credits(screen, A, F, bg, fx, age):
     draw_text(screen, F["small"], "Esc / Enter — назад", GRAY, WIN_W // 2, WIN_H - 28, "c")
 
 
+# ===== [DEBUG-START] ========================================================================
+# ЧИТ-ПАНЕЛЬ РАЗРАБОТЧИКА — один отдельный блок.
+#
+# Куда вставить: в game.py СРАЗУ ПЕРЕД строкой
+#     # ============================================================ главный цикл
+# (после всех функций draw_* и перед def view_info / def main). ВСЁ. Больше ничего менять не надо:
+# блок сам подключается к игре (оборачивает draw_hud, pygame.event.get, Game.hurt_player, Game.try_move).
+# Если раньше ты добавлял в main() строки с пометкой [DEBUG] — УДАЛИ их, они больше не нужны.
+#
+# Как удалить при релизе: удалить ВСЁ от "[DEBUG-START]" до "[DEBUG-END]" (больше нигде следов нет).
+# Либо просто поставить DEBUG_ENABLED = False — тогда панель вообще не включается.
+#
+# Как пользоваться: в игре нажми J, введи пароль 1337 и Enter. Повторное J закрывает/открывает панель.
+# Читы включаются мышкой или горячими клавишами, пока панель открыта.
+# При запуске игры в консоли должна появиться строка "[DEBUG] чит-панель загружена" — если её нет,
+# блок вставлен не туда / не сохранён файл.
+
+DEBUG_ENABLED = True
+DEBUG_PASSWORD = "1337"
+DEBUG_ASK_EVERY_TIME = False     # True = спрашивать пароль при КАЖДОМ открытии панели
+DEBUG_KEY = "J"                  # буква для открытия/закрытия панели (работает и на русской раскладке)
+
+
+def _dbg_hit(ev, letter):
+    """Нажата ли клавиша-буква (работает и на русской раскладке)."""
+    return (ev.scancode == getattr(pygame, "KSCAN_" + letter, -2)
+            or ev.key == getattr(pygame, "K_" + letter.lower(), -3))
+
+
+class DebugPanel:
+    def __init__(self):
+        self.visible = False
+        self.unlocked = False
+        self.asking = False
+        self.buf = ""
+        self.msg = ""
+        self.god = False
+        self.noclip = False
+        self.rects = []
+        # (клавиша, название, действие(g), функция-состояние или None)
+        self.actions = [
+            ("G", "Бессмертие (god mode)", self.a_god, lambda: self.god),
+            ("N", "Проход сквозь стены", self.a_noclip, lambda: self.noclip),
+            ("T", "Телепорт к двери", self.a_tp_door, None),
+            ("K", "Убить всех врагов", self.a_kill_all, None),
+            ("X", "Пропустить этаж", self.a_skip_floor, None),
+            ("Z", "К боссу (ближайший 5/10-й этаж)", self.a_to_boss, None),
+            ("C", "Следующая локация (этаж 11, 21...)", self.a_next_biome, None),
+            ("H", "Полное лечение", self.a_heal, None),
+            ("B", "+1000 золота", self.a_gold, None),
+            ("L", "+1 уровень", self.a_level, None),
+            ("I", "Все предметы x9", self.a_items, None),
+            ("V", "Открыть карту этажа", self.a_map, None),
+        ]
+
+    # ---------------------------------------------------------------- действия
+    def a_god(self, g):
+        self.god = not self.god
+        g.say("[DEBUG] Бессмертие: " + ("ВКЛ" if self.god else "выкл"), RED)
+
+    def a_noclip(self, g):
+        self.noclip = not self.noclip
+        g.say("[DEBUG] Проход сквозь стены: " + ("ВКЛ" if self.noclip else "выкл"), RED)
+
+    def a_tp_door(self, g):
+        ex, ey = g.exit_pos
+        spots = [(ex + dx, ey + dy) for dx, dy in
+                 ((0, 1), (0, -1), (1, 0), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1))]
+        for x, y in spots:
+            if g.grid[y][x] == 0 and not g.blocked(x, y):
+                g.px, g.py = x, y
+                break
+        else:
+            g.px, g.py = ex, ey
+        g.snap_camera()
+        g.compute_fov()
+        g.say("[DEBUG] Телепорт к двери.", RED)
+
+    def a_kill_all(self, g):
+        n = len(g.mobs)
+        for m in list(g.mobs):
+            g.kill_mob(m)
+        g.say(f"[DEBUG] Убито врагов: {n}.", RED)
+
+    def a_skip_floor(self, g):
+        g.descend()
+
+    def a_to_boss(self, g):
+        """Прыжок на этаж перед ближайшим боссом (5, 10, 15, ...) и спуск на него."""
+        nxt = (g.depth // 5 + 1) * 5
+        g.depth = nxt - 1
+        g.descend()
+        g.say(f"[DEBUG] Этаж босса: {g.depth}.", RED)
+
+    def a_next_biome(self, g):
+        """Прыжок на первый этаж следующей локации (11, 21, 31, ...)."""
+        nxt = ((g.depth - 1) // 10 + 1) * 10 + 1
+        g.depth = nxt - 1
+        g.descend()
+        g.say(f"[DEBUG] Локация: {BIOMES[g.biome]['name']} (этаж {g.depth}).", RED)
+
+    def a_heal(self, g):
+        g.st.pop("poison", None)
+        g.st.pop("burn", None)
+        g.heal(g.max_hp)
+        g.say("[DEBUG] Полное лечение.", RED)
+
+    def a_gold(self, g):
+        g.add_gold(1000)
+        g.say("[DEBUG] +1000 золота.", RED)
+
+    def a_level(self, g):
+        g.gain_xp(g.xp_need())
+
+    def a_items(self, g):
+        for k in ORDER:
+            g.inv[k] = max(g.inv[k], 9)
+        g.say("[DEBUG] Предметы: по 9 штук.", RED)
+
+    def a_map(self, g):
+        for yy in range(ROWS):
+            for xx in range(COLS):
+                if g.grid[yy][xx] == 0:
+                    for dy in (-1, 0, 1):
+                        for dx in (-1, 0, 1):
+                            g.explored[yy + dy][xx + dx] = True
+        g.mini_dirty = True
+        g.say("[DEBUG] Карта открыта.", RED)
+
+    # ---------------------------------------------------------------- ввод
+    def _toggle(self):
+        if self.visible:
+            self.visible = False
+            if DEBUG_ASK_EVERY_TIME:
+                self.unlocked = False
+        elif self.unlocked:
+            self.visible = True
+        else:
+            self.asking, self.buf, self.msg = True, "", ""
+
+    def _type(self, ev):
+        if ev.key == pygame.K_ESCAPE:
+            self.asking, self.buf, self.msg = False, "", ""
+        elif ev.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+            if self.buf == DEBUG_PASSWORD:
+                self.unlocked, self.asking, self.visible = True, False, True
+                self.buf = self.msg = ""
+            else:
+                self.buf, self.msg = "", "Неверный пароль"
+        elif ev.key == pygame.K_BACKSPACE:
+            self.buf = self.buf[:-1]
+        elif ev.unicode and ev.unicode.isprintable() and len(self.buf) < 12:
+            self.buf += ev.unicode
+
+    def _run(self, i, g):
+        name, fn = self.actions[i][1], self.actions[i][2]
+        if g.over and fn not in (self.a_god, self.a_noclip):
+            return                      # на экране смерти действия не нужны
+        if g.cut:
+            g.skip_cut()
+        fn(g)
+
+    def handle_event(self, ev, g, mpos):
+        """True = событие обработано панелью (игре его передавать не надо)."""
+        if not DEBUG_ENABLED or g is None:
+            return False
+        if ev.type == pygame.KEYDOWN:
+            if self.asking:
+                self._type(ev)
+                return True
+            if _dbg_hit(ev, DEBUG_KEY):
+                self._toggle()
+                return True
+            if self.visible and not g.ui:
+                for i, a in enumerate(self.actions):
+                    if _dbg_hit(ev, a[0]):
+                        self._run(i, g)
+                        return True
+            return False
+        if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1 and self.visible and not self.asking:
+            p = mpos(ev.pos)
+            for i, r in enumerate(self.rects):
+                if r.collidepoint(p):
+                    self._run(i, g)
+                    return True
+        return False
+
+    # ---------------------------------------------------------------- рисование
+    def draw(self, screen, g, F):
+        if not DEBUG_ENABLED or g is None:
+            return
+        if self.asking:
+            r = pygame.Rect(WIN_W // 2 - 190, MAP_H // 2 - 70, 380, 140)
+            panel(screen, r, (200, 60, 60))
+            draw_text(screen, F["normal_b"], "DEBUG — введите пароль", RED, r.centerx, r.y + 12, "c")
+            draw_text(screen, F["big"], "*" * len(self.buf), TEXT, r.centerx, r.y + 50, "c")
+            draw_text(screen, F["small"], self.msg or "Enter — ок   •   Esc — отмена",
+                      RED if self.msg else GRAY, r.centerx, r.y + 104, "c")
+            return
+        if not self.visible:           # панель закрыта, но читы включены — напоминаем
+            tags = [n for n, on in (("GOD", self.god), ("NOCLIP", self.noclip)) if on]
+            if tags:
+                draw_text(screen, F["small"], "DEBUG: " + " ".join(tags), RED, 10, 118)
+            return
+        w = 330
+        r = pygame.Rect(10, 120, w, 40 + 26 * len(self.actions) + 28)
+        panel(screen, r, (200, 60, 60), 225)
+        draw_text(screen, F["normal_b"], "DEBUG PANEL", RED, r.x + 10, r.y + 6)
+        self.rects = []
+        for i, (key, name, fn, state) in enumerate(self.actions):
+            row = pygame.Rect(r.x + 8, r.y + 36 + i * 26, w - 16, 24)
+            self.rects.append(row)
+            pygame.draw.rect(screen, (45, 30, 40), row)
+            draw_text(screen, F["small"], key, GOLD, row.x + 6, row.y + 3, shadow=False)
+            draw_text(screen, F["small"], name, TEXT, row.x + 28, row.y + 3, shadow=False)
+            if state:
+                on = state()
+                draw_text(screen, F["small"], "ВКЛ" if on else "выкл", GREEN if on else GRAY,
+                          row.right - 6, row.y + 3, "r", shadow=False)
+        draw_text(screen, F["small"], "J — закрыть панель", GRAY, r.x + 10, r.bottom - 22, shadow=False)
+
+
+DBG = DebugPanel()
+
+if DEBUG_ENABLED:
+    # --- God mode: оборачиваем получение урона (яд, огонь, ловушки тоже проходят через него)
+    _orig_hurt_player = Game.hurt_player
+
+    def _dbg_hurt_player(self, dmg, src, pierce=False):
+        if DBG.god:
+            return 0
+        return _orig_hurt_player(self, dmg, src, pierce)
+
+    Game.hurt_player = _dbg_hurt_player
+
+    # --- Проход сквозь стены: если впереди стена, просто шагаем в неё (границу карты не пересекаем)
+    _orig_try_move = Game.try_move
+
+    def _dbg_try_move(self, dx, dy):
+        if DBG.noclip and not self.over and not self.ui and not self.cut:
+            nx, ny = self.px + dx, self.py + dy
+            if 1 <= nx < COLS - 1 and 1 <= ny < ROWS - 1 and self.grid[ny][nx] == 1:
+                if dx:
+                    self.facing = dx
+                self.px, self.py = nx, ny
+                self.end_turn()
+                return
+        _orig_try_move(self, dx, dy)
+
+    Game.try_move = _dbg_try_move
+
+    # --- Автоподключение к игре (чтобы не править main()) ---
+    DBG.game = None
+    DBG.last_hud = -10 ** 9
+
+    def _dbg_mpos(p):
+        """Координаты мыши окна -> координаты игры (учёт масштаба и чёрных полос)."""
+        ww, wh = pygame.display.get_surface().get_size()
+        k = max(0.1, min(ww / WIN_W, wh / WIN_H))
+        sw, sh = int(WIN_W * k), int(WIN_H * k)
+        return int((p[0] - (ww - sw) // 2) / k), int((p[1] - (wh - sh) // 2) / k)
+
+    # draw_hud вызывается каждый кадр только во время игры: запоминаем игру и рисуем панель поверх
+    _orig_draw_hud = draw_hud
+
+    def draw_hud(screen, g, A, F):
+        _orig_draw_hud(screen, g, A, F)
+        DBG.game = g
+        DBG.last_hud = pygame.time.get_ticks()
+        DBG.draw(screen, g, F)
+
+    # перехватываем события: если панель их «съела», игра их не увидит
+    _orig_event_get = pygame.event.get
+
+    def _dbg_event_get(*a, **k):
+        evs = _orig_event_get(*a, **k)
+        g = DBG.game
+        if g is None or pygame.time.get_ticks() - DBG.last_hud > 400:   # не в режиме игры
+            return evs
+        return [e for e in evs if not DBG.handle_event(e, g, _dbg_mpos)]
+
+    pygame.event.get = _dbg_event_get
+    print("[DEBUG] чит-панель загружена: в игре нажми " + DEBUG_KEY + ", пароль " + DEBUG_PASSWORD)
+# ===== [DEBUG-END] ==========================================================================
+
 # ============================================================ главный цикл
 def view_info():
     win = pygame.display.get_surface()
@@ -2849,16 +4784,24 @@ def main():
     key_moves = {pygame.K_UP: (0, -1), pygame.K_DOWN: (0, 1), pygame.K_LEFT: (-1, 0), pygame.K_RIGHT: (1, 0)}
     SC_Q, SC_R, SC_M, SC_H = ks("Q"), ks("R"), ks("M"), ks("H")
     ENTER = (pygame.K_RETURN, pygame.K_KP_ENTER)
-    N_MENU = 6
 
+    save_info = load_save_file()             # есть ли сохранённый забег (кнопка «Продолжить»)
     state, sel, typed, game = "menu", 0, "", None
     state_t0 = pygame.time.get_ticks()
     rects = []
-    hov = [0.0] * N_MENU
+    hov = [0.0] * 8
     held = {}                # зажатые клавиши движения: scancode -> (dx, dy)
     buffered = [None, 0]     # «запомненное» нажатие, чтобы короткие тапы не терялись
     fade, fade_dir, pending = 0.0, 0, None
     dt = 16
+    last_save_turn = 0
+
+    def items_now():
+        return menu_items(sfx, save_info)
+
+    def save_now():
+        if state == "play" and game is not None and not game.over:
+            game.autosave()
 
     # ---- плавные переходы между экранами: затемнение -> смена -> проявление
     def go(new_state, setup=None):
@@ -2886,46 +4829,80 @@ def main():
         held.clear()
 
     def setup_game():
-        nonlocal game
+        nonlocal game, last_save_turn
         pygame.key.set_repeat()
         held.clear()
         buffered[0] = None
         game = Game(typed.strip().capitalize() or "Безымянный Герой", sfx, rec)
+        last_save_turn = 0
+
+    def setup_continue():
+        nonlocal game, save_info, last_save_turn
+        held.clear()
+        buffered[0] = None
+        try:
+            game = Game(save_info["name"], sfx, rec, data=save_info)
+        except Exception:                      # повреждённое сохранение — начинаем заново
+            delete_save()
+            save_info = None
+            game = Game("Безымянный Герой", sfx, rec)
+        last_save_turn = game.turn
 
     def setup_restart():
-        nonlocal game
+        nonlocal game, last_save_turn
         held.clear()
         buffered[0] = None
         game = Game(game.name, sfx, rec)
+        last_save_turn = 0
+
+    def setup_menu():
+        nonlocal save_info, sel
+        save_now()                             # выход из забега в меню сохраняет игру
+        save_info = load_save_file()
+        sel = 0
+        held.clear()
 
     def activate(i):
+        nonlocal sel
+        its = items_now()
+        if i >= len(its):
+            return
+        mid = its[i][0]
         sfx.play("ui")
-        if i == 0:
+        if mid == "continue":
+            go("play", setup_continue)
+        elif mid == "new":
             go("name", setup_name)
-        elif i == 1:
+        elif mid == "help":
             go("help")
-        elif i == 2:
+        elif mid == "records":
             go("records")
-        elif i == 3:
+        elif mid == "credits":
             go("credits")
-        elif i == 4:
+        elif mid == "sound":
             sfx.on = not sfx.on
         else:
             pygame.quit()
             sys.exit()
 
+    def quit_game():
+        save_now()                             # закрыли окно — забег сохранён
+        pygame.quit()
+        sys.exit()
+
     while True:
         _, vk, vox, voy, _, _ = view_info()
         now = pygame.time.get_ticks()
         age = now - state_t0
+        n_items = len(items_now())
+        sel = min(sel, n_items - 1)
 
         def mpos(p):
             return int((p[0] - vox) / vk), int((p[1] - voy) / vk)
 
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                quit_game()
             if ev.type == pygame.KEYDOWN and ev.key == pygame.K_F11:
                 pygame.display.toggle_fullscreen()
                 continue
@@ -2952,16 +4929,15 @@ def main():
                             activate(i)
                 elif ev.type == pygame.KEYDOWN:
                     if ev.key in (pygame.K_UP, pygame.K_w) or ev.scancode == ks("W"):
-                        sel = (sel - 1) % N_MENU
+                        sel = (sel - 1) % n_items
                         sfx.play("ui")
                     elif ev.key in (pygame.K_DOWN, pygame.K_s) or ev.scancode == ks("S"):
-                        sel = (sel + 1) % N_MENU
+                        sel = (sel + 1) % n_items
                         sfx.play("ui")
                     elif ev.key in ENTER or ev.key == pygame.K_SPACE:
                         activate(sel)
                     elif ev.key == pygame.K_ESCAPE:
-                        pygame.quit()
-                        sys.exit()
+                        quit_game()
                 continue
             if ev.type != pygame.KEYDOWN:
                 continue
@@ -2988,7 +4964,11 @@ def main():
                 if ev.key == pygame.K_ESCAPE:
                     game.paused = False
                 elif ev.key in ENTER:
-                    go("menu")
+                    go("menu", setup_menu)
+                continue
+            if game.cut:                           # катсцену можно пропустить
+                if ev.key in ENTER or ev.key in (pygame.K_ESCAPE, pygame.K_SPACE):
+                    game.skip_cut()
                 continue
             if game.ui:
                 game.ui.key(ev)
@@ -2997,7 +4977,7 @@ def main():
                 if ev.key == pygame.K_r or ev.scancode == SC_R:
                     go(None, setup_restart)
                 elif ev.key in ENTER or ev.key == pygame.K_ESCAPE:
-                    go("menu")
+                    go("menu", setup_menu)
                 continue
             if ev.key == pygame.K_ESCAPE:
                 game.paused = True
@@ -3021,7 +5001,7 @@ def main():
                 game.use_item(ORDER[ev.key - pygame.K_1])
 
         if state == "play":
-            if game.ui or game.over or game.paused:
+            if game.ui or game.over or game.paused or game.cut:
                 held.clear()
                 buffered[0] = None
             elif game.cd <= 0 and game.freeze <= 0 and not fade_dir:
@@ -3033,21 +5013,24 @@ def main():
                 buffered[1] -= 1
                 if buffered[1] <= 0:
                     buffered[0] = None
+            if not game.over and game.turn - last_save_turn >= 20:      # автосохранение каждые 20 ходов
+                game.autosave()
+                last_save_turn = game.turn
 
         # ---- какая музыка должна играть
         if state in ("menu", "name", "help", "records", "credits"):
             music.play("menu")
         elif game is None or game.over:
             music.play(None)
-        elif any(m.kind == "king" and m.awake for m in game.mobs):
-            music.play("boss")                       # бой с Королём гоблинов
+        elif any(is_boss(m) and m.awake for m in game.mobs):
+            music.play("boss")                       # бой с боссом
         else:
             music.play(None)
         music.update(dt)
 
         # ---- отрисовка
         if state == "menu":
-            rects = draw_menu(screen, A, F, bg, fx, sel, sfx, rec, age, hov)
+            rects = draw_menu(screen, A, F, bg, fx, sel, sfx, rec, age, hov, items_now())
         elif state == "name":
             draw_name_screen(screen, A, F, bg, fx, typed, age)
         elif state in ("help", "records", "credits"):
@@ -3080,7 +5063,7 @@ def main():
                 screen.blit(dim, (0, 0))
                 draw_text(screen, F["title"], "ПАУЗА", GOLD, WIN_W // 2, 220 + int((1 - k) * 40), "c",
                           alpha=int(255 * k))
-                draw_text(screen, F["normal"], "Esc — продолжить   •   Enter — в главное меню",
+                draw_text(screen, F["normal"], "Esc — продолжить   •   Enter — в меню (игра сохранится)",
                           GRAY, WIN_W // 2, 320 + int((1 - k) * 40), "c", alpha=int(255 * k))
 
         # ---- затемнение при переходе между экранами
